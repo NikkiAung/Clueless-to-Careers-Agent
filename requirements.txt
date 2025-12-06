@@ -5,4 +5,7 @@ crawlee[playwright]
 playwright
 flask
 flask-cors
+markdown
+weasyprint
+pypdf
 

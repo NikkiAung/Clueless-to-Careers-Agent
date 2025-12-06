@@ -7,6 +7,7 @@ import asyncio
 import sys
 import os
 from pathlib import Path
+
 example_resume = """
 Ye Marn Aung
 Daly City, CA 94015| (253)-345-2360 | jaredaungfr@gmail.com|yaung2@sfsu.edu | https://github.com/JaredAung | https://www.linkedin.com/in/ye-marn-aung/ | 

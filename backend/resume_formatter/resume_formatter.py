@@ -97,42 +97,59 @@ if __name__ == "__main__":
     user_prompt = """
 Format this resume:
 
-Ye Marn Aung
-Daly City, CA 94015| (253)-345-2360 | jaredaungfr@gmail.com|yaung2@sfsu.edu | https://github.com/JaredAung | https://www.linkedin.com/in/ye-marn-aung/ | 
-
-PROFESSIONAL SUMMARY
-Computer Science student at San Francisco State University with hands-on experience delivering full-stack and AI/ML projects from concept to production. Built and deployed applications using various tools for real-world use cases such as AI search engines, RAG-based recommenders, deep-learning networks and computer vision systems. Strong background in cloud deployment, database engineering, and applied AI models development. Seeking opportunities to apply AI and software engineering skills to scalable and user-focused products. 
-
-EDUCATION
-San Francisco State University                                                                                              	San Francisco, CA
-Bachelor of Science, Computer Science 					       	 Expected December 2026
-Minor: Mathematics
-
-PROJECT EXPERIENCE
-GaitorGate: AI-Powered Search Engine for AI Applications	          
-Team Lead, Database Engineer | Flask, Python, Apache2, Linux Ubuntu, MySQL, AWS EC2, Gunicorn, Google Gemini, Figma, Git 
-●	Led a full-stack web application project enabling users to discover AI tools using NLP-enhanced search
-●	Integrated secure authentication, NLP and keyword-based searches, a user ratings and review system, AI chatbot (Google Gemini), and deployed and maintained on the AWS EC2 with Apache2 + Gunicorn
-●	Applied Agile practices and led a 6-member team to deliver the highest-rated product in a 12 groups competition
-
-MovieCenter: RAG-based LangChain Movie Recommender System	
-Developer |LangChain, Python, Pinecone, MongoDB, Google Gemini, Next.js, React, TypeScript, Docker, AWS EC2, FastAPI, Hugging Face SentenceTransformers, TMDB API, Pandas
-●	Built a Retrieval-Augmented Generation (RAG) pipeline with LangChain, Pinecone vector DB, MongoDB and Google Gemini to deliver context-rich movie recommendations for close to 10,000 movies 
-●	Improved semantic similarity search accuracy by 30% over baseline using HuggingFace SentenceTransformers
-●	Deployed a containerized backend with Docker on AWS EC2, and exposed APIs via FastAPI, seamlessly integrated into a Next.js + React frontend
-
-Board2Board: Chess Utility AI for Over-the-Board (OTB) Game Recognition 	
-Developer | Keras, Python, OpenCV, ResNet50 Model, Numpy, Scikit-Learn, Linear Regression, Matplotlib, Scipy, Scikit-Image, TensorFlow, Joblib, Jupyter Notebook 
-●	Designed a computer vision pipeline with OpenCV to segment chessboard images into 64 cropped square images for piece recognition
-●	Fine-tuned a ResNet50 model on a custom hand-labeled dataset of 2,000+ images, achieving 94% accuracy across 13 classes (pieces and empty square) 
-●	Incorporated a Linear Regression-based thresholding system in the computer vision pipeline to adapt to variable lighting and image conditions, improving robustness across diverse board images
-
-Additional SKILLS
-Web/Cloud: REST APIs, Node.js, Flask, Next.js, React, AWS (EC2), Docker
-Programming Languages: Python, Java, JavaScript, TypeScript, SQL
-ML/AI: PyTorch, TensorFlow, Keras, HuggingFace, Scikit-Learn, OpenCV
-Databases: MySQL, MongoDB, Postgres, Pinecone	
-Tools: Firebase, Linux, Render, Github Actions, Git/GitHub 
+Aung Nanda Oo
+(628) 888-9496 anandaoo.it@gmail.com linkedin.com/in/aung-nanda-oo github.com/NikkiAung
+Education
+City College Of San Francisco | willing to relocate for jobs Bachelor of Science in Computer Science — GPA - 4.0 Expected Graduation: May 2027
+San Francisco, CA
+• Dean’s list 2x, Microsoft x Last Mile Education Fund Scholar, 200+ Data Structures and Algorithms Solved Pfp
+Technical Skills
+Languages: Go, Kotlin, Python, C#, Java, JavaScript, TypeScript, MySQL, GraphQL, PostgreSQL
+Developer Tools: AWS, Git, Gitlab, Kubernetes, Docker, Postman, Google Cloud Platform, GNU Linux, HTML5, CSS
+Libraries/Frameworks: Angular, MongoDB, ExpressJS, ReactJS, NodeJS, NextJS, Spring Boot, Zustand, Electron
+Technical Communication: Tutor my cousin in Scratch, Python, HTML, & CSS, TA for 70+ students in Java and OOP
+Work Experience
+CCSF Computer Science Department | Released Product Feb 2025 – Jun 2025
+Lead Full Stack Software Engineer Intern San Francisco, CA
+• Designed desktop app using Electron, React v16+, Node-Cron, JavaScript & Shell scripts enabling 20+
+tutors to automate Zoom session scheduling & notifications, improving session delay by 99.9%
+• Developed a RESTful API in Node.js with MongoDB (NoSQL) to enable tutors to manage main and overtime
+scheduling through CRUD operations in an MVC architecture
+• Deployed backend on AWS EC2 using VPC networking (subnets, route tables, NAT, security groups) to ensure
+secure API access and protection from external threats
+Meta Jun 2025 – Sep 2025
+Site Reliable Engineer Intern California, United States
+• Managed deployment using Docker for the Flask application, MySQL database, and Nginx reverse proxy on a
+CentOS-based Linux VPS, ensuring 99% high uptime and scalability in Scrum rituals
+• Automated testing and deployment pipelines using CI/CD, performing regular system health checks and debugging
+with Bash+Python scripts, accelerating deployment processes by 50% & reducing production bugs by 30%
+• Reduced latency by 30% for high-throughput production traffic via auto-scaling AWS EC2 instances, supporting
+100,000 concurrent users via Redis caching and optimized HTTP protocols
+• Implemented Prometheus and Grafana monitoring, alerting & visualizing, improving issue detection speed by 40%
+CodeDay Labs Jun 2025 – Aug 2025
+Lead Open Source Software Engineer Intern | Pull Request : #2261 , #30979, #3299 | Blog Post Remote, United States
+• Collaborated with engineers from Dagster company with 50K+ users, using React, TypeScript, GraphQL, & Agile
+methodology, enabling direct partition view access from materialized bar, improving UI/UX navigation by 50%
+• Contributed to 2.5M+ users Eclipse IDE (Java) by integrating a global keybinding for seamless navigation
+through search results, leveraging OOP concepts and implementing 15+ unit and integration tests
+A Bank Jun 2023 – Aug 2023
+Backend Developer Intern Yangon, Myanmar (Burma)
+• Developed 7+ microservices in Java Spring Boot for core banking validity and duplicate checks, integrating JUnit
+tests and designing RESTful APIs with Swagger UI to streamline backend–frontend collaboration
+• Containerized and deployed banking microservices on AWS (EC2, RDS) using Docker, Kubernetes, Terraform,
+and CloudWatch, enabling auto-scaling, real-time payments, and 99.99% uptime for high-traffic operations
+• Migrated a code base from a legacy framework to Angular and ReactNative, reducing latency by 2 seconds
+Projects
+TikTok AI Hackathon Winner | Devpost Next.js | AuthJS | GCP | TypeScript | PostgreSQL | ShadCN
+∗ Built AI-powered GitHub repository mentor to help fresh intern with large code base, leading front-end development
+using Next.js, TypeScript, Zustand, PostgreSQL, & ShadCN while collaborating with two backend AI engineers
+∗ Implemented a full-featured authentication system with email/password login, 2FA OTP code, email verification, forgot
+password, social login (GCP Google & GitHub), and secure session management, leveraging AuthJS
+Enterprise Travel Assistant AI Agent | Source Code MongoDB | Voyage AI | MCP | Fireworks AI | LangChain
+∗ Built AI-powered enterprise travel assistant using MongoDB Atlas, FastAPI, and Next.js (TypeScript) with
+LangChain, Fireworks AI (LLM), & Voyage AI embeddings, enabling RAG, context-aware travel planning
+∗ Developed an autonomous agent layer leveraging LLM-driven intent detection and semantic retrieval to
+dynamically invoke MCP travel tools (flights, hotels, and policies) for real-time, intelligent response
 
 Please format this resume in a professional, clean, and well-structured format.
     """
