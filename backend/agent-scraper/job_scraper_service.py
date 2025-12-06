@@ -57,6 +57,7 @@ sys.path.insert(0, str(backend_path))
 
 from user_job_match.user_job_map import ask_agent_for_improvements
 from tailor_resume.rewrite_resume import rewrite_resume_with_agent
+from convertMDtoPDF.convertoPDF import convert_markdown_to_pdf
 
 
 async def scrape_and_tailor_resume(job_url: str, resume_text: str = None) -> dict:
@@ -82,7 +83,8 @@ async def scrape_and_tailor_resume(job_url: str, resume_text: str = None) -> dic
             - formatted_prompt (str): The formatted prompt sent to AI
             - ai_response (str): The AI agent's response (job insights)
             - improvements (str): Improvement suggestions from user-job match agent
-            - rewritten_resume (str): The rewritten resume
+            - rewritten_resume (str): The rewritten resume (Markdown)
+            - pdf_path (str): Path to the generated PDF file
             - error (str): Error message if any
     """
     # Use example_resume as default if no resume_text is provided
@@ -95,6 +97,7 @@ async def scrape_and_tailor_resume(job_url: str, resume_text: str = None) -> dic
         "ai_response": "",
         "improvements": "",
         "rewritten_resume": "",
+        "pdf_path": "",
         "error": ""
     }
     
@@ -199,6 +202,54 @@ async def scrape_and_tailor_resume(job_url: str, resume_text: str = None) -> dic
             else:
                 result["error"] = error_msg
             print(f"\n❌ {error_msg}")
+        
+        # Step 6: Convert rewritten resume (Markdown) to PDF
+        print(f"\n{'='*80}")
+        print(f"STEP 6: Converting Markdown to PDF")
+        print(f"{'='*80}")
+        if result.get("rewritten_resume"):
+            try:
+                # Generate output PDF path
+                # Use job title or company name for filename if available
+                job_title = result.get("job_data", {}).get("job_title", "resume")
+                company = result.get("job_data", {}).get("company", "")
+                
+                # Sanitize filename
+                safe_job_title = "".join(c for c in job_title if c.isalnum() or c in (' ', '-', '_')).strip()[:50]
+                safe_company = "".join(c for c in company if c.isalnum() or c in (' ', '-', '_')).strip()[:30]
+                
+                if safe_company:
+                    pdf_filename = f"tailored_resume_{safe_job_title}_{safe_company}.pdf"
+                else:
+                    pdf_filename = f"tailored_resume_{safe_job_title}.pdf"
+                
+                # Remove spaces and replace with underscores
+                pdf_filename = pdf_filename.replace(" ", "_")
+                
+                # Set output path in the convertMDtoPDF directory
+                output_dir = backend_path / "convertMDtoPDF"
+                output_dir.mkdir(parents=True, exist_ok=True)
+                pdf_path = output_dir / pdf_filename
+                
+                print(f"Converting Markdown to PDF: {pdf_path}")
+                pdf_path_str = convert_markdown_to_pdf(
+                    markdown_content=result["rewritten_resume"],
+                    output_path=pdf_path
+                )
+                result["pdf_path"] = pdf_path_str
+                print(f"\n✓ PDF Generated Successfully!")
+                print(f"PDF saved at: {pdf_path_str}")
+            except Exception as e:
+                error_msg = f"Failed to convert to PDF: {str(e)}"
+                if result["error"]:
+                    result["error"] += f" | {error_msg}"
+                else:
+                    result["error"] = error_msg
+                print(f"\n❌ {error_msg}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print(f"\n⚠ Skipping PDF conversion: No rewritten resume available")
         
         print(f"\n{'='*80}")
         print("Process completed!")
