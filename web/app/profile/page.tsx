@@ -1,7 +1,9 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
   User,
   GraduationCap,
@@ -16,6 +18,7 @@ import {
   CheckCircle2,
   Plus,
   ChevronDown,
+  Save,
 } from "lucide-react";
 
 // Mock data for demonstration
@@ -113,6 +116,10 @@ const itemVariants = {
 };
 
 export default function ProfilePage() {
+  const router = useRouter();
+  const supabase = createClient();
+  
+  const [user, setUser] = useState<any>(null);
   const [name, setName] = useState("");
   const [education, setEducation] = useState({
     school: "",
@@ -121,10 +128,113 @@ export default function ProfilePage() {
     endDate: "",
   });
   const [resumeUploaded, setResumeUploaded] = useState(false);
+  const [resumeUrl, setResumeUrl] = useState("");
+  const [resumeFilename, setResumeFilename] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [resumeData, setResumeData] = useState<typeof mockResumeData | null>(null);
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState("");
+
+  // Load user profile data from Supabase
+  useEffect(() => {
+    const loadProfile = async () => {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      if (!currentUser) {
+        router.push('/auth/signin?redirect=/profile');
+        return;
+      }
+
+      setUser(currentUser);
+
+      // Load profile data
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Profile doesn't exist, create it
+          console.log('Profile not found, creating new profile...');
+          const { error: createError } = await supabase
+            .from('profiles')
+            .insert({
+              id: currentUser.id,
+              name: currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || 'User',
+            });
+          if (createError) {
+            console.error('Error creating profile:', createError);
+          } else {
+            // Reload profile after creation
+            const { data: newProfile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', currentUser.id)
+              .single();
+            if (newProfile) {
+              setName(newProfile.name || "");
+              return;
+            }
+          }
+        } else {
+          console.error('Error loading profile:', error);
+        }
+      } else if (profile) {
+        console.log('Profile loaded successfully:', { name: profile.name, resume_url: profile.resume_url });
+        setName(profile.name || "");
+        
+        // Parse education JSON string to object
+        let educationData = {
+          school: "",
+          degree: "",
+          startDate: "",
+          endDate: "",
+        };
+        
+        if (profile.education) {
+          try {
+            // If it's already an object (from previous code), use it directly
+            if (typeof profile.education === 'object') {
+              educationData = {
+                school: profile.education.school || "",
+                degree: profile.education.degree || "",
+                startDate: profile.education.startDate || "",
+                endDate: profile.education.endDate || "",
+              };
+            } else {
+              // If it's a JSON string, parse it
+              educationData = JSON.parse(profile.education);
+            }
+          } catch (e) {
+            console.error('Error parsing education data:', e);
+          }
+        }
+        
+        setEducation(educationData);
+        setResumeUrl(profile.resume_url || "");
+        setResumeFilename(profile.resume_filename || "");
+        setResumeUploaded(!!profile.resume_url);
+        
+        // Load resume data if it exists
+        if (profile.resume_data) {
+          try {
+            const parsedResumeData = typeof profile.resume_data === 'string' 
+              ? JSON.parse(profile.resume_data) 
+              : profile.resume_data;
+            setResumeData(parsedResumeData);
+          } catch (e) {
+            console.error('Error parsing resume data:', e);
+          }
+        }
+      }
+    };
+
+    loadProfile();
+  }, [router, supabase]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -136,26 +246,162 @@ export default function ProfilePage() {
     setIsDragOver(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const uploadResume = useCallback(async (file: File) => {
+    if (!user) return;
+
+    setIsProcessing(true);
+
+    try {
+      // Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('resumes')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('resumes')
+        .getPublicUrl(fileName);
+
+      console.log('Resume uploaded, public URL:', publicUrl);
+
+      // Update profile with resume URL and filename immediately
+      // Include name to satisfy NOT NULL constraint - use state variable or fallback
+      const profileName = name.trim() || user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          name: profileName,
+          resume_url: publicUrl,
+          resume_filename: file.name,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'
+        });
+
+      if (updateError) {
+        console.error('Error updating profile with resume URL:', updateError);
+        throw updateError;
+      }
+
+      console.log('Profile updated with resume URL and filename');
+
+      setResumeUrl(publicUrl);
+      setResumeFilename(file.name);
+      setResumeUploaded(true);
+      
+      // Simulate resume processing (you can integrate with your backend here)
+      // For now, using mock data - replace this with actual resume parsing
+      setTimeout(async () => {
+        const extractedData = mockResumeData; // Replace with actual extraction
+        setResumeData(extractedData);
+        
+        // Save extracted resume data to database along with resume URL and filename
+        try {
+          // Use state variable for name or fallback
+          const profileName = name.trim() || user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+          
+          const { error: saveResumeDataError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: user.id,
+              name: profileName,
+              resume_url: publicUrl,
+              resume_filename: file.name,
+              resume_data: JSON.stringify(extractedData),
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'id'
+            });
+          
+          if (saveResumeDataError) {
+            console.error('Error saving resume data:', saveResumeDataError);
+            alert('Resume uploaded but failed to save extracted data: ' + saveResumeDataError.message);
+          } else {
+            console.log('Resume data saved successfully');
+          }
+        } catch (error: any) {
+          console.error('Error saving resume data:', error);
+          alert('Resume uploaded but failed to save extracted data: ' + error.message);
+        }
+        
+        setIsProcessing(false);
+      }, 2000);
+    } catch (error: any) {
+      console.error('Error uploading resume:', error);
+      alert('Failed to upload resume: ' + error.message);
+      setIsProcessing(false);
+    }
+  }, [user, supabase]);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    processResume();
-  }, []);
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      processResume();
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (file.type === 'application/pdf') {
+        await uploadResume(file);
+      } else {
+        alert('Please upload a PDF file');
+      }
     }
-  };
+  }, [uploadResume]);
 
-  const processResume = () => {
-    setIsProcessing(true);
-    // Simulate processing
-    setTimeout(() => {
-      setResumeUploaded(true);
-      setIsProcessing(false);
-      setResumeData(mockResumeData);
-    }, 2000);
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      if (file.type === 'application/pdf') {
+        await uploadResume(file);
+      } else {
+        alert('Please upload a PDF file');
+      }
+    }
+  }, [uploadResume]);
+
+  const saveProfile = async () => {
+    if (!user) return;
+
+    setIsSaving(true);
+    setSaveMessage("");
+
+    try {
+      // Convert education object to JSON string for storage
+      const educationJson = JSON.stringify(education);
+      
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          name: name,
+          education: educationJson,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'
+        });
+
+      if (error) throw error;
+
+      setSaveMessage("Profile saved successfully!");
+      setTimeout(() => setSaveMessage(""), 3000);
+    } catch (error: any) {
+      console.error('Error saving profile:', error);
+      setSaveMessage("Failed to save profile: " + error.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -186,9 +432,34 @@ export default function ProfilePage() {
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
             Build Your Profile
           </h1>
-          <p className="text-neutral-500 text-lg max-w-2xl mx-auto">
+          <p className="text-neutral-500 text-lg max-w-2xl mx-auto mb-6">
             Create a stunning portfolio that showcases your skills and experience
           </p>
+          
+          {/* Save Button and Message */}
+          <div className="flex items-center justify-center gap-4">
+            <motion.button
+              onClick={saveProfile}
+              disabled={isSaving}
+              whileHover={{ scale: isSaving ? 1 : 1.05 }}
+              whileTap={{ scale: isSaving ? 1 : 0.95 }}
+              className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Save className="w-4 h-4" />
+              {isSaving ? "Saving..." : "Save Profile"}
+            </motion.button>
+            {saveMessage && (
+              <motion.p
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`text-sm ${
+                  saveMessage.includes("success") ? "text-green-400" : "text-red-400"
+                }`}
+              >
+                {saveMessage}
+              </motion.p>
+            )}
+          </div>
         </motion.div>
 
         <div className="grid lg:grid-cols-3 gap-8">
@@ -244,32 +515,110 @@ export default function ProfilePage() {
                   placeholder="Degree / Field of Study"
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-neutral-600 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/10 transition-all duration-300"
                 />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-4">
                   <div>
-                    <label className="text-xs text-neutral-500 mb-1 block">
+                    <label className="text-xs text-neutral-500 mb-2 block">
                       Start Date
                     </label>
-                    <input
-                      type="month"
-                      value={education.startDate}
-                      onChange={(e) =>
-                        setEducation({ ...education, startDate: e.target.value })
-                      }
-                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/10 transition-all duration-300 [color-scheme:dark]"
-                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <select
+                        value={education.startDate ? education.startDate.split('-')[0] : ''}
+                        onChange={(e) => {
+                          const year = e.target.value;
+                          const month = education.startDate ? education.startDate.split('-')[1] : '';
+                          setEducation({ ...education, startDate: year && month ? `${year}-${month}` : year || month ? `${year || ''}-${month || ''}` : '' });
+                        }}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/10 transition-all duration-300"
+                      >
+                        <option value="">Year</option>
+                        {Array.from({ length: 20 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                          <option key={year} value={year} className="bg-black text-white">
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={education.startDate ? education.startDate.split('-')[1] : ''}
+                        onChange={(e) => {
+                          const month = e.target.value;
+                          const year = education.startDate ? education.startDate.split('-')[0] : '';
+                          setEducation({ ...education, startDate: year && month ? `${year}-${month}` : year || month ? `${year || ''}-${month || ''}` : '' });
+                        }}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/10 transition-all duration-300"
+                      >
+                        <option value="">Month</option>
+                        {[
+                          { value: '01', label: 'January' },
+                          { value: '02', label: 'February' },
+                          { value: '03', label: 'March' },
+                          { value: '04', label: 'April' },
+                          { value: '05', label: 'May' },
+                          { value: '06', label: 'June' },
+                          { value: '07', label: 'July' },
+                          { value: '08', label: 'August' },
+                          { value: '09', label: 'September' },
+                          { value: '10', label: 'October' },
+                          { value: '11', label: 'November' },
+                          { value: '12', label: 'December' },
+                        ].map((month) => (
+                          <option key={month.value} value={month.value} className="bg-black text-white">
+                            {month.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div>
-                    <label className="text-xs text-neutral-500 mb-1 block">
-                      End Date
+                    <label className="text-xs text-neutral-500 mb-2 block">
+                      End Date (or leave blank if ongoing)
                     </label>
-                    <input
-                      type="month"
-                      value={education.endDate}
-                      onChange={(e) =>
-                        setEducation({ ...education, endDate: e.target.value })
-                      }
-                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/10 transition-all duration-300 [color-scheme:dark]"
-                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <select
+                        value={education.endDate ? education.endDate.split('-')[0] : ''}
+                        onChange={(e) => {
+                          const year = e.target.value;
+                          const month = education.endDate ? education.endDate.split('-')[1] : '';
+                          setEducation({ ...education, endDate: year && month ? `${year}-${month}` : year || month ? `${year || ''}-${month || ''}` : '' });
+                        }}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/10 transition-all duration-300"
+                      >
+                        <option value="">Year</option>
+                        {Array.from({ length: 20 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                          <option key={year} value={year} className="bg-black text-white">
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={education.endDate ? education.endDate.split('-')[1] : ''}
+                        onChange={(e) => {
+                          const month = e.target.value;
+                          const year = education.endDate ? education.endDate.split('-')[0] : '';
+                          setEducation({ ...education, endDate: year && month ? `${year}-${month}` : year || month ? `${year || ''}-${month || ''}` : '' });
+                        }}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/10 transition-all duration-300"
+                      >
+                        <option value="">Month</option>
+                        {[
+                          { value: '01', label: 'January' },
+                          { value: '02', label: 'February' },
+                          { value: '03', label: 'March' },
+                          { value: '04', label: 'April' },
+                          { value: '05', label: 'May' },
+                          { value: '06', label: 'June' },
+                          { value: '07', label: 'July' },
+                          { value: '08', label: 'August' },
+                          { value: '09', label: 'September' },
+                          { value: '10', label: 'October' },
+                          { value: '11', label: 'November' },
+                          { value: '12', label: 'December' },
+                        ].map((month) => (
+                          <option key={month.value} value={month.value} className="bg-black text-white">
+                            {month.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -363,51 +712,53 @@ export default function ProfilePage() {
 
           {/* Right Column - Extracted Data */}
           <motion.div variants={itemVariants} className="lg:col-span-2 space-y-6">
-            <AnimatePresence>
-              {resumeData ? (
+            <AnimatePresence mode="wait">
+              {resumeData && resumeUploaded ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-6"
+              >
+                {/* Technical Skills */}
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="space-y-6"
+                  variants={itemVariants}
+                  className="bg-white/[0.02] backdrop-blur-sm rounded-2xl p-6 border border-white/10"
                 >
-                  {/* Technical Skills */}
-                  <motion.div
-                    variants={itemVariants}
-                    className="bg-white/[0.02] backdrop-blur-sm rounded-2xl p-6 border border-white/10"
+                  <button
+                    onClick={() =>
+                      setActiveSection(
+                        activeSection === "skills" ? null : "skills"
+                      )
+                    }
+                    className="flex items-center justify-between w-full mb-4"
                   >
-                    <button
-                      onClick={() =>
-                        setActiveSection(
-                          activeSection === "skills" ? null : "skills"
-                        )
-                      }
-                      className="flex items-center justify-between w-full mb-4"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-white/10">
-                          <Code2 className="w-5 h-5 text-white" />
-                        </div>
-                        <h2 className="text-lg font-semibold text-white">
-                          Technical Skills
-                        </h2>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-white/10">
+                        <Code2 className="w-5 h-5 text-white" />
                       </div>
-                      <motion.div
-                        animate={{ rotate: activeSection === "skills" ? 180 : 0 }}
-                      >
-                        <ChevronDown className="w-5 h-5 text-neutral-400" />
-                      </motion.div>
-                    </button>
+                      <h2 className="text-lg font-semibold text-white">
+                        Technical Skills
+                      </h2>
+                      <span className="text-xs text-neutral-500 ml-2">(Extracted from Resume)</span>
+                    </div>
                     <motion.div
-                      initial={false}
-                      animate={{
-                        height: activeSection === "skills" ? 0 : "auto",
-                        opacity: activeSection === "skills" ? 0 : 1,
-                      }}
-                      className="overflow-hidden"
+                      animate={{ rotate: activeSection === "skills" ? 180 : 0 }}
                     >
-                      <div className="flex flex-wrap gap-2">
-                        {resumeData.technicalSkills.map((skill, index) => (
+                      <ChevronDown className="w-5 h-5 text-neutral-400" />
+                    </motion.div>
+                  </button>
+                  <motion.div
+                    initial={false}
+                    animate={{
+                      height: activeSection === "skills" ? 0 : "auto",
+                      opacity: activeSection === "skills" ? 0 : 1,
+                    }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex flex-wrap gap-2">
+                      {resumeData.technicalSkills && resumeData.technicalSkills.length > 0 ? (
+                        resumeData.technicalSkills.map((skill, index) => (
                           <motion.span
                             key={skill}
                             initial={{ opacity: 0, scale: 0.8 }}
@@ -418,18 +769,13 @@ export default function ProfilePage() {
                           >
                             {skill}
                           </motion.span>
-                        ))}
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="px-3 py-1.5 bg-transparent border border-white/10 border-dashed rounded-full text-sm text-neutral-500 hover:border-white/30 hover:text-white transition-all duration-200 flex items-center gap-1"
-                        >
-                          <Plus className="w-3 h-3" />
-                          Add Skill
-                        </motion.button>
-                      </div>
-                    </motion.div>
+                        ))
+                      ) : (
+                        <p className="text-neutral-500 text-sm">No skills extracted yet</p>
+                      )}
+                    </div>
                   </motion.div>
+                </motion.div>
 
                   {/* Experience */}
                   <motion.div

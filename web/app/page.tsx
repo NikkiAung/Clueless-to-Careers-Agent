@@ -100,7 +100,7 @@ export default function Home() {
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
-          className="grid md:grid-cols-3 gap-6 mt-24"
+          className="relative z-20 grid md:grid-cols-3 gap-6 mt-24"
         >
           {[
             {
@@ -139,21 +139,21 @@ export default function Home() {
         </motion.div>
 
         {/* Floating elements */}
-        <div className="absolute top-32 left-10 hidden lg:block">
+        <div className="absolute top-32 left-10 hidden lg:block z-0">
           <motion.div
             animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }}
             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
             className="w-20 h-20 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-sm"
           />
         </div>
-        <div className="absolute top-48 right-16 hidden lg:block">
+        <div className="absolute top-48 right-16 hidden lg:block z-0">
           <motion.div
             animate={{ y: [0, 20, 0], rotate: [0, -5, 0] }}
             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
             className="w-16 h-16 rounded-full bg-white/[0.03] border border-white/10 backdrop-blur-sm"
           />
         </div>
-        <div className="absolute bottom-32 left-20 hidden lg:block">
+        <div className="absolute bottom-32 left-20 hidden lg:block z-0">
           <motion.div
             animate={{ y: [0, 15, 0], x: [0, 10, 0] }}
             transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}

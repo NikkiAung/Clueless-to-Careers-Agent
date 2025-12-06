@@ -16,7 +16,7 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CareerLaunch | Your Career Dashboard",
+  title: "Clueless to Careers Agent | Your Career Dashboard",
   description: "Build your portfolio and track your job applications",
 };
 
