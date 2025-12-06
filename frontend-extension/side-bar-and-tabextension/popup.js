@@ -84,12 +84,22 @@ async function simulateAIProcessing() {
   let keywordsValue = 0;
   
   // Step 1: Analyzing job description (0-25%)
+  // This step waits for backend to scrape the job posting
+  activateStep('step-1');
+  
+  // Wait for backend response (this is where scraping happens)
+  let waited = 0;
+  const maxWait = 60000; // 60 seconds max
+  while (!window.backendResponseReceived && waited < maxWait) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    waited += 100;
+  }
+  
   await animateProgress(0, 25, 1500, (value) => {
     progressFill.style.width = value + '%';
     matchScoreValue = Math.floor(value * 0.8);
     matchScore.textContent = matchScoreValue + '%';
   });
-  activateStep('step-1');
   
   // Step 2: Tailoring resume content (25-50%)
   await animateProgress(25, 50, 2000, (value) => {
@@ -166,15 +176,49 @@ function showCompletion() {
 document.getElementById('apply-job-btn').addEventListener('click', async () => {
   const tab = await getCurrentTab();
   
-  // TODO: Send message to background script to start AI processing
-  // For now, we'll simulate the process
+  if (!tab || !tab.url) {
+    alert('Error: Could not get current tab URL. Please try again.');
+    return;
+  }
+  
+  // Reset backend response flag
+  window.backendResponseReceived = false;
+  window.currentJobData = null;
+  window.currentAIResponse = null;
+  
+  // Show processing view immediately
+  showView('processing');
+  
+  // Start progress animation (will wait for backend during step 1)
+  const progressPromise = simulateAIProcessing();
+  
+  // Send message to background script to start AI processing
   chrome.runtime.sendMessage({
     type: 'START_JOB_APPLICATION',
     tabUrl: tab.url,
     tabId: tab.id,
+  }, (response) => {
+    if (chrome.runtime.lastError) {
+      console.error('Error:', chrome.runtime.lastError);
+      alert('Error: ' + chrome.runtime.lastError.message + '\n\nMake sure the backend API server is running:\npython backend/api_server.py');
+      showView('choice');
+      return;
+    }
+    
+    if (response && response.success) {
+      // Store the response
+      window.currentJobData = response.job_data;
+      window.currentAIResponse = response.ai_response;
+      window.backendResponseReceived = true;
+      console.log('Backend processing completed successfully');
+    } else {
+      // Show error
+      const errorMsg = response?.error || 'Unknown error occurred';
+      console.error('Backend error:', errorMsg);
+      alert('Error: ' + errorMsg);
+      showView('choice');
+    }
   });
-  
-  simulateAIProcessing();
 });
 
 document.getElementById('open-sidebar-btn').addEventListener('click', async () => {

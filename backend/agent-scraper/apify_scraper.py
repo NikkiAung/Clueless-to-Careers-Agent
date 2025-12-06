@@ -68,9 +68,14 @@ async def scrape_job_posting(url: str) -> Dict[str, str]:
         # Wait for page to load
         await page.wait_for_load_state("networkidle", timeout=30000)
         
-        # Get the full page text
-        full_text = await page.inner_text("body")
-        job_data["full_text"] = full_text
+        # Get the full page text first (important fallback)
+        try:
+            full_text = await page.inner_text("body")
+            job_data["full_text"] = full_text
+            print(f"Extracted full_text length: {len(full_text)}")
+        except Exception as e:
+            print(f"Error getting full text: {e}")
+            job_data["full_text"] = ""
         
         # Try to extract structured data based on common job site patterns
         if "linkedin.com" in domain:
@@ -101,6 +106,8 @@ async def scrape_job_posting(url: str) -> Dict[str, str]:
             await _scrape_greenhouse(page, job_data)
         elif "workday.com" in domain:
             await _scrape_workday(page, job_data)
+        elif "careers-americas.hyundai.com" in domain or "hyundai.com" in domain:
+            await _scrape_hyundai(page, job_data)
         else:
             # Generic scraping for unknown sites
             await _scrape_generic(page, job_data)
@@ -347,6 +354,66 @@ async def _scrape_workday(page: Page, job_data: Dict[str, str]) -> None:
         print(f"Error scraping Workday: {e}")
 
 
+async def _scrape_hyundai(page: Page, job_data: Dict[str, str]) -> None:
+    """Scrape Hyundai careers job postings"""
+    try:
+        # Wait for page to load
+        await page.wait_for_load_state("networkidle", timeout=30000)
+        
+        # Job title - usually in h1 or h2
+        job_data["job_title"] = await _safe_get_text(page, "h1, h2.job-title, h1.job-title")
+        
+        # Company
+        job_data["company"] = "Hyundai"
+        
+        # Location - look for location info
+        location_selectors = [
+            "span.location",
+            "div.location",
+            "[data-testid='location']",
+            "span:has-text('Location')",
+        ]
+        for selector in location_selectors:
+            text = await _safe_get_text(page, selector)
+            if text and "CA" in text or "US" in text:
+                job_data["location"] = text
+                break
+        
+        # Job description - main content area
+        desc_selectors = [
+            "div.job-description",
+            "div.description",
+            "div[class*='description']",
+            "div[class*='job-detail']",
+            "main",
+            "article",
+            "div.content"
+        ]
+        
+        for selector in desc_selectors:
+            text = await _safe_get_text(page, selector)
+            if text and len(text) > 200:
+                job_data["job_description"] = text
+                break
+        
+        # If we didn't get description, use full text
+        if not job_data["job_description"]:
+            full_text = await page.inner_text("body")
+            job_data["full_text"] = full_text
+            job_data["job_description"] = full_text
+        
+        # Extract sections from description
+        full_desc = job_data["job_description"] or job_data["full_text"]
+        job_data["responsibilities"] = _extract_section(full_desc, ["responsibilities", "major responsibilities", "duties", "what you'll do"])
+        job_data["skills"] = _extract_section(full_desc, ["qualifications", "requirements", "skills", "skills/knowledge", "competencies"])
+        job_data["education"] = _extract_section(full_desc, ["education", "degree", "bachelor", "master", "must be"])
+        job_data["experience"] = _extract_section(full_desc, ["experience", "years", "minimum"])
+        job_data["benefits"] = _extract_section(full_desc, ["benefits", "compensation", "salary", "perks", "hour"])
+        
+    except Exception as e:
+        print(f"Error scraping Hyundai: {e}")
+
+
 async def _scrape_generic(page: Page, job_data: Dict[str, str]) -> None:
     """Generic scraping for unknown job sites"""
     try:
@@ -510,9 +577,13 @@ def format_job_data_for_prompt(job_data: Dict[str, str]) -> str:
     
     # If we don't have structured data, use the full text
     if not any([job_data.get("job_description"), job_data.get("responsibilities"), 
-                job_data.get("skills"), job_data.get("education")]):
-        if job_data.get("full_text"):
+            job_data.get("skills"), job_data.get("education")]):
+        if job_data.get("full_text") and len(job_data.get("full_text", "")) > 200:
             prompt_parts.append(f"\nFull Job Posting:\n{job_data['full_text']}")
+    
+    # If we still have nothing, return empty string (will be handled by caller)
+    if len("\n".join(prompt_parts).strip()) < 50:
+        return ""
     
     return "\n".join(prompt_parts)
 

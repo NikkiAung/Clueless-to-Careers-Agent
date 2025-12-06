@@ -37,10 +37,64 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true; // Keep message channel open for async response
   } else if (message.type === 'START_JOB_APPLICATION') {
-    // Handle job application start
-    // TODO: Integrate with backend AI agent
+    // Handle job application start - call backend scraper
     console.log('Starting job application for:', message.tabUrl);
-    sendResponse({ success: true });
+    
+    // Call backend API to scrape and tailor resume
+    // Using 127.0.0.1 instead of localhost to avoid macOS AirPlay interference
+    fetch('http://127.0.0.1:5000/api/scrape-and-tailor', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        job_url: message.tabUrl
+      })
+    })
+    .then(response => {
+      // Check if response is ok
+      if (!response.ok) {
+        return response.text().then(text => {
+          throw new Error(`Server error (${response.status}): ${text || response.statusText}`);
+        });
+      }
+      // Check if response has content
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        return response.text().then(text => {
+          throw new Error(`Invalid response type. Expected JSON, got: ${contentType}. Response: ${text.substring(0, 200)}`);
+        });
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Backend response received:', data);
+      sendResponse({ 
+        success: data.success, 
+        job_data: data.job_data,
+        ai_response: data.ai_response,
+        formatted_prompt: data.formatted_prompt,
+        error: data.error 
+      });
+    })
+    .catch(error => {
+      console.error('Error calling backend API:', error);
+      let errorMessage = error.message;
+      
+      // Provide helpful error messages
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        errorMessage = 'Cannot connect to backend server. Make sure the API server is running:\n\npython backend/api_server.py';
+      } else if (error.message.includes('Unexpected end of JSON input')) {
+        errorMessage = 'Backend server returned invalid response. Check if the server is running and responding correctly.';
+      }
+      
+      sendResponse({ 
+        success: false, 
+        error: `Failed to connect to backend: ${errorMessage}` 
+      });
+    });
+    
+    return true; // Keep message channel open for async response
   } else if (message.type === 'DOWNLOAD_RESUME') {
     // Handle resume download
     // TODO: Integrate with backend

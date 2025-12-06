@@ -1,4 +1,8 @@
 do-gradientai
 python-dotenv
 requests
+crawlee[playwright]
+playwright
+flask
+flask-cors
 
