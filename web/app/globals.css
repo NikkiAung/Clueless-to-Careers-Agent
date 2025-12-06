@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0f;
-  --foreground: #ededed;
+  --background: #000000;
+  --foreground: #ffffff;
   --font-sans: var(--font-space-grotesk), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), monospace;
 }
@@ -29,72 +29,30 @@ body {
   min-height: 100vh;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - monochrome */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1e1e2e;
+  background: #0a0a0a;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #06b6d4, #a855f7);
-  border-radius: 4px;
+  background: #333;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #22d3ee, #c084fc);
-}
-
-/* Gradient text utility */
-.gradient-text {
-  background: linear-gradient(135deg, #06b6d4, #a855f7, #ec4899);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  background: #555;
 }
 
 /* Glass effect */
 .glass {
-  background: rgba(15, 15, 30, 0.6);
+  background: rgba(10, 10, 10, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-}
-
-/* Glow effects */
-.glow-cyan {
-  box-shadow: 0 0 20px rgba(6, 182, 212, 0.3),
-              0 0 40px rgba(6, 182, 212, 0.1);
-}
-
-.glow-purple {
-  box-shadow: 0 0 20px rgba(168, 85, 247, 0.3),
-              0 0 40px rgba(168, 85, 247, 0.1);
-}
-
-.glow-pink {
-  box-shadow: 0 0 20px rgba(236, 72, 153, 0.3),
-              0 0 40px rgba(236, 72, 153, 0.1);
-}
-
-/* Animated gradient background */
-@keyframes gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-.animate-gradient {
-  background-size: 200% 200%;
-  animation: gradient 15s ease infinite;
 }
 
 /* Pulse animation delay utilities */
@@ -114,15 +72,15 @@ body {
   overflow: hidden;
 }
 
-/* Selection color */
+/* Selection color - monochrome */
 ::selection {
-  background: rgba(168, 85, 247, 0.3);
+  background: rgba(255, 255, 255, 0.2);
   color: #fff;
 }
 
 /* Focus visible for accessibility */
 :focus-visible {
-  outline: 2px solid #06b6d4;
+  outline: 1px solid #fff;
   outline-offset: 2px;
 }
 

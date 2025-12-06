@@ -12,10 +12,8 @@ import {
   Calendar,
   MapPin,
   Building2,
-  Sparkles,
   FileText,
   CheckCircle2,
-  X,
   Plus,
   ChevronDown,
 } from "lucide-react";
@@ -161,12 +159,11 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 pt-24 pb-12">
-      {/* Animated Background */}
+    <div className="min-h-screen bg-black pt-24 pb-12">
+      {/* Subtle Background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 -left-1/4 w-1/2 h-1/2 bg-cyan-500/10 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-purple-500/10 rounded-full blur-[120px] animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1/3 h-1/3 bg-pink-500/5 rounded-full blur-[100px] animate-pulse delay-500" />
+        <div className="absolute top-1/4 -left-1/4 w-1/2 h-1/2 bg-white/[0.01] rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-white/[0.01] rounded-full blur-[120px]" />
       </div>
 
       <motion.div
@@ -181,15 +178,15 @@ export default function ProfilePage() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-pink-500/10 border border-cyan-500/20 mb-6"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-6"
           >
-            <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span className="text-sm text-cyan-300">Your Career Dashboard</span>
+            <div className="w-2 h-2 rounded-full bg-white" />
+            <span className="text-sm text-neutral-400">Your Career Dashboard</span>
           </motion.div>
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white via-cyan-200 to-purple-200 bg-clip-text text-transparent mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
             Build Your Profile
           </h1>
-          <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+          <p className="text-neutral-500 text-lg max-w-2xl mx-auto">
             Create a stunning portfolio that showcases your skills and experience
           </p>
         </motion.div>
@@ -200,11 +197,11 @@ export default function ProfilePage() {
             {/* Name Card */}
             <motion.div
               whileHover={{ scale: 1.02 }}
-              className="bg-slate-900/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-800 hover:border-cyan-500/30 transition-all duration-300"
+              className="bg-white/[0.02] backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all duration-300"
             >
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-purple-500/20">
-                  <User className="w-5 h-5 text-cyan-400" />
+                <div className="p-2 rounded-lg bg-white/10">
+                  <User className="w-5 h-5 text-white" />
                 </div>
                 <h2 className="text-lg font-semibold text-white">Your Name</h2>
               </div>
@@ -213,18 +210,18 @@ export default function ProfilePage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter your full name"
-                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-300"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-neutral-600 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/10 transition-all duration-300"
               />
             </motion.div>
 
             {/* Education Card */}
             <motion.div
               whileHover={{ scale: 1.02 }}
-              className="bg-slate-900/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-800 hover:border-purple-500/30 transition-all duration-300"
+              className="bg-white/[0.02] backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all duration-300"
             >
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20">
-                  <GraduationCap className="w-5 h-5 text-purple-400" />
+                <div className="p-2 rounded-lg bg-white/10">
+                  <GraduationCap className="w-5 h-5 text-white" />
                 </div>
                 <h2 className="text-lg font-semibold text-white">Education</h2>
               </div>
@@ -236,7 +233,7 @@ export default function ProfilePage() {
                     setEducation({ ...education, school: e.target.value })
                   }
                   placeholder="School / University"
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-neutral-600 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/10 transition-all duration-300"
                 />
                 <input
                   type="text"
@@ -245,11 +242,11 @@ export default function ProfilePage() {
                     setEducation({ ...education, degree: e.target.value })
                   }
                   placeholder="Degree / Field of Study"
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-neutral-600 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/10 transition-all duration-300"
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-slate-400 mb-1 block">
+                    <label className="text-xs text-neutral-500 mb-1 block">
                       Start Date
                     </label>
                     <input
@@ -258,11 +255,11 @@ export default function ProfilePage() {
                       onChange={(e) =>
                         setEducation({ ...education, startDate: e.target.value })
                       }
-                      className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300 [color-scheme:dark]"
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/10 transition-all duration-300 [color-scheme:dark]"
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-slate-400 mb-1 block">
+                    <label className="text-xs text-neutral-500 mb-1 block">
                       End Date
                     </label>
                     <input
@@ -271,7 +268,7 @@ export default function ProfilePage() {
                       onChange={(e) =>
                         setEducation({ ...education, endDate: e.target.value })
                       }
-                      className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300 [color-scheme:dark]"
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/10 transition-all duration-300 [color-scheme:dark]"
                     />
                   </div>
                 </div>
@@ -281,11 +278,11 @@ export default function ProfilePage() {
             {/* Resume Upload Card */}
             <motion.div
               whileHover={{ scale: 1.02 }}
-              className="bg-slate-900/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-800 hover:border-pink-500/30 transition-all duration-300"
+              className="bg-white/[0.02] backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all duration-300"
             >
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 rounded-lg bg-gradient-to-r from-pink-500/20 to-orange-500/20">
-                  <FileText className="w-5 h-5 text-pink-400" />
+                <div className="p-2 rounded-lg bg-white/10">
+                  <FileText className="w-5 h-5 text-white" />
                 </div>
                 <h2 className="text-lg font-semibold text-white">Resume</h2>
               </div>
@@ -296,10 +293,10 @@ export default function ProfilePage() {
                 onDrop={handleDrop}
                 className={`relative flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${
                   isDragOver
-                    ? "border-pink-500 bg-pink-500/10"
+                    ? "border-white bg-white/10"
                     : resumeUploaded
-                    ? "border-green-500/50 bg-green-500/5"
-                    : "border-slate-700 hover:border-pink-500/50 bg-slate-800/30"
+                    ? "border-white/30 bg-white/5"
+                    : "border-white/10 hover:border-white/30 bg-white/[0.02]"
                 }`}
               >
                 <input
@@ -320,9 +317,9 @@ export default function ProfilePage() {
                       <motion.div
                         animate={{ rotate: 360 }}
                         transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        className="w-10 h-10 border-2 border-pink-500 border-t-transparent rounded-full"
+                        className="w-10 h-10 border-2 border-white border-t-transparent rounded-full"
                       />
-                      <p className="text-pink-400 mt-3 text-sm">
+                      <p className="text-white mt-3 text-sm">
                         Extracting data...
                       </p>
                     </motion.div>
@@ -334,11 +331,11 @@ export default function ProfilePage() {
                       exit={{ opacity: 0, scale: 0.8 }}
                       className="flex flex-col items-center"
                     >
-                      <CheckCircle2 className="w-10 h-10 text-green-500" />
-                      <p className="text-green-400 mt-3 text-sm font-medium">
+                      <CheckCircle2 className="w-10 h-10 text-white" />
+                      <p className="text-white mt-3 text-sm font-medium">
                         Resume uploaded!
                       </p>
-                      <p className="text-slate-500 text-xs mt-1">
+                      <p className="text-neutral-500 text-xs mt-1">
                         Click to replace
                       </p>
                     </motion.div>
@@ -350,11 +347,11 @@ export default function ProfilePage() {
                       exit={{ opacity: 0, scale: 0.8 }}
                       className="flex flex-col items-center"
                     >
-                      <Upload className="w-10 h-10 text-slate-500" />
-                      <p className="text-slate-400 mt-3 text-sm">
+                      <Upload className="w-10 h-10 text-neutral-500" />
+                      <p className="text-neutral-400 mt-3 text-sm">
                         Drop your resume here
                       </p>
-                      <p className="text-slate-500 text-xs mt-1">
+                      <p className="text-neutral-600 text-xs mt-1">
                         PDF, DOC, DOCX
                       </p>
                     </motion.div>
@@ -377,7 +374,7 @@ export default function ProfilePage() {
                   {/* Technical Skills */}
                   <motion.div
                     variants={itemVariants}
-                    className="bg-slate-900/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-800"
+                    className="bg-white/[0.02] backdrop-blur-sm rounded-2xl p-6 border border-white/10"
                   >
                     <button
                       onClick={() =>
@@ -388,8 +385,8 @@ export default function ProfilePage() {
                       className="flex items-center justify-between w-full mb-4"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-blue-500/20">
-                          <Code2 className="w-5 h-5 text-cyan-400" />
+                        <div className="p-2 rounded-lg bg-white/10">
+                          <Code2 className="w-5 h-5 text-white" />
                         </div>
                         <h2 className="text-lg font-semibold text-white">
                           Technical Skills
@@ -398,7 +395,7 @@ export default function ProfilePage() {
                       <motion.div
                         animate={{ rotate: activeSection === "skills" ? 180 : 0 }}
                       >
-                        <ChevronDown className="w-5 h-5 text-slate-400" />
+                        <ChevronDown className="w-5 h-5 text-neutral-400" />
                       </motion.div>
                     </button>
                     <motion.div
@@ -417,7 +414,7 @@ export default function ProfilePage() {
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: index * 0.05 }}
                             whileHover={{ scale: 1.1 }}
-                            className="px-3 py-1.5 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-full text-sm text-cyan-300 hover:border-cyan-500/40 transition-all duration-200"
+                            className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-sm text-white hover:bg-white/10 hover:border-white/20 transition-all duration-200"
                           >
                             {skill}
                           </motion.span>
@@ -425,7 +422,7 @@ export default function ProfilePage() {
                         <motion.button
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.95 }}
-                          className="px-3 py-1.5 bg-slate-800/50 border border-slate-700 border-dashed rounded-full text-sm text-slate-400 hover:border-cyan-500/40 hover:text-cyan-400 transition-all duration-200 flex items-center gap-1"
+                          className="px-3 py-1.5 bg-transparent border border-white/10 border-dashed rounded-full text-sm text-neutral-500 hover:border-white/30 hover:text-white transition-all duration-200 flex items-center gap-1"
                         >
                           <Plus className="w-3 h-3" />
                           Add Skill
@@ -437,7 +434,7 @@ export default function ProfilePage() {
                   {/* Experience */}
                   <motion.div
                     variants={itemVariants}
-                    className="bg-slate-900/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-800"
+                    className="bg-white/[0.02] backdrop-blur-sm rounded-2xl p-6 border border-white/10"
                   >
                     <button
                       onClick={() =>
@@ -448,8 +445,8 @@ export default function ProfilePage() {
                       className="flex items-center justify-between w-full mb-6"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20">
-                          <Briefcase className="w-5 h-5 text-purple-400" />
+                        <div className="p-2 rounded-lg bg-white/10">
+                          <Briefcase className="w-5 h-5 text-white" />
                         </div>
                         <h2 className="text-lg font-semibold text-white">
                           Work Experience
@@ -460,7 +457,7 @@ export default function ProfilePage() {
                           rotate: activeSection === "experience" ? 180 : 0,
                         }}
                       >
-                        <ChevronDown className="w-5 h-5 text-slate-400" />
+                        <ChevronDown className="w-5 h-5 text-neutral-400" />
                       </motion.div>
                     </button>
                     <motion.div
@@ -478,28 +475,28 @@ export default function ProfilePage() {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: index * 0.1 }}
-                            className="relative pl-6 before:absolute before:left-0 before:top-2 before:w-2 before:h-2 before:rounded-full before:bg-purple-500 after:absolute after:left-[3px] after:top-4 after:bottom-0 after:w-0.5 after:bg-slate-700 last:after:hidden"
+                            className="relative pl-6 before:absolute before:left-0 before:top-2 before:w-2 before:h-2 before:rounded-full before:bg-white after:absolute after:left-[3px] after:top-4 after:bottom-0 after:w-0.5 after:bg-white/10 last:after:hidden"
                           >
                             <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                               <div>
                                 <h3 className="text-white font-semibold">
                                   {exp.title}
                                 </h3>
-                                <div className="flex items-center gap-2 text-slate-400 text-sm mt-1">
+                                <div className="flex items-center gap-2 text-neutral-400 text-sm mt-1">
                                   <Building2 className="w-3.5 h-3.5" />
                                   <span>{exp.company}</span>
-                                  <span className="text-slate-600">•</span>
-                                  <span className="text-purple-400/80">
+                                  <span className="text-neutral-600">•</span>
+                                  <span className="text-neutral-500">
                                     {exp.type}
                                   </span>
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div className="flex items-center gap-1 text-slate-500 text-sm">
+                                <div className="flex items-center gap-1 text-neutral-500 text-sm">
                                   <Calendar className="w-3.5 h-3.5" />
                                   <span>{exp.period}</span>
                                 </div>
-                                <div className="flex items-center gap-1 text-slate-600 text-xs mt-1">
+                                <div className="flex items-center gap-1 text-neutral-600 text-xs mt-1">
                                   <MapPin className="w-3 h-3" />
                                   <span>{exp.location}</span>
                                 </div>
@@ -510,9 +507,9 @@ export default function ProfilePage() {
                                 {exp.description.map((desc, i) => (
                                   <li
                                     key={i}
-                                    className="text-slate-400 text-sm flex items-start gap-2"
+                                    className="text-neutral-400 text-sm flex items-start gap-2"
                                   >
-                                    <span className="text-purple-500 mt-1.5">
+                                    <span className="text-white mt-1.5">
                                       •
                                     </span>
                                     {desc}
@@ -525,7 +522,7 @@ export default function ProfilePage() {
                                 {exp.skills.map((skill) => (
                                   <span
                                     key={skill}
-                                    className="px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 rounded text-xs text-purple-300"
+                                    className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-xs text-neutral-300"
                                   >
                                     {skill}
                                   </span>
@@ -541,7 +538,7 @@ export default function ProfilePage() {
                   {/* Projects */}
                   <motion.div
                     variants={itemVariants}
-                    className="bg-slate-900/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-800"
+                    className="bg-white/[0.02] backdrop-blur-sm rounded-2xl p-6 border border-white/10"
                   >
                     <button
                       onClick={() =>
@@ -552,8 +549,8 @@ export default function ProfilePage() {
                       className="flex items-center justify-between w-full mb-6"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-gradient-to-r from-orange-500/20 to-yellow-500/20">
-                          <FolderGit2 className="w-5 h-5 text-orange-400" />
+                        <div className="p-2 rounded-lg bg-white/10">
+                          <FolderGit2 className="w-5 h-5 text-white" />
                         </div>
                         <h2 className="text-lg font-semibold text-white">
                           Projects
@@ -564,7 +561,7 @@ export default function ProfilePage() {
                           rotate: activeSection === "projects" ? 180 : 0,
                         }}
                       >
-                        <ChevronDown className="w-5 h-5 text-slate-400" />
+                        <ChevronDown className="w-5 h-5 text-neutral-400" />
                       </motion.div>
                     </button>
                     <motion.div
@@ -583,19 +580,19 @@ export default function ProfilePage() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.1 }}
                             whileHover={{ scale: 1.02, y: -5 }}
-                            className="p-4 bg-slate-800/30 rounded-xl border border-slate-700 hover:border-orange-500/30 transition-all duration-300 group"
+                            className="p-4 bg-white/[0.02] rounded-xl border border-white/10 hover:border-white/20 transition-all duration-300 group"
                           >
-                            <h3 className="text-white font-semibold group-hover:text-orange-300 transition-colors">
+                            <h3 className="text-white font-semibold group-hover:text-neutral-200 transition-colors">
                               {project.name}
                             </h3>
-                            <p className="text-slate-400 text-sm mt-2 line-clamp-2">
+                            <p className="text-neutral-500 text-sm mt-2 line-clamp-2">
                               {project.description}
                             </p>
                             <div className="flex flex-wrap gap-1.5 mt-3">
                               {project.technologies.map((tech) => (
                                 <span
                                   key={tech}
-                                  className="px-2 py-0.5 bg-orange-500/10 border border-orange-500/20 rounded text-xs text-orange-300"
+                                  className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-xs text-neutral-400"
                                 >
                                   {tech}
                                 </span>
@@ -606,7 +603,7 @@ export default function ProfilePage() {
                         <motion.button
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
-                          className="p-4 bg-slate-800/20 rounded-xl border-2 border-dashed border-slate-700 hover:border-orange-500/30 transition-all duration-300 flex flex-col items-center justify-center gap-2 text-slate-500 hover:text-orange-400 min-h-[120px]"
+                          className="p-4 bg-transparent rounded-xl border-2 border-dashed border-white/10 hover:border-white/20 transition-all duration-300 flex flex-col items-center justify-center gap-2 text-neutral-500 hover:text-white min-h-[120px]"
                         >
                           <Plus className="w-6 h-6" />
                           <span className="text-sm">Add Project</span>
@@ -620,7 +617,7 @@ export default function ProfilePage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="flex flex-col items-center justify-center h-[400px] bg-slate-900/30 rounded-2xl border border-slate-800 border-dashed"
+                  className="flex flex-col items-center justify-center h-[400px] bg-white/[0.02] rounded-2xl border border-white/10 border-dashed"
                 >
                   <motion.div
                     animate={{
@@ -632,12 +629,12 @@ export default function ProfilePage() {
                       ease: "easeInOut",
                     }}
                   >
-                    <Upload className="w-16 h-16 text-slate-600" />
+                    <Upload className="w-16 h-16 text-neutral-600" />
                   </motion.div>
-                  <h3 className="text-slate-400 text-lg font-medium mt-4">
+                  <h3 className="text-neutral-400 text-lg font-medium mt-4">
                     Upload your resume
                   </h3>
-                  <p className="text-slate-500 text-sm mt-2 max-w-md text-center">
+                  <p className="text-neutral-600 text-sm mt-2 max-w-md text-center">
                     Drop your resume on the left to automatically extract your
                     skills, experience, and projects
                   </p>
@@ -650,5 +647,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-
