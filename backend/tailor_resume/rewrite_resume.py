@@ -5,7 +5,9 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-
+# TAILOR USER RESUME TO JOB POSTING
+# PROMPT: Improvements, Resume
+# OUTPUT: Rewritten Resume
 def rewrite_resume_with_agent(prompt: str):
     """
     Send a prompt to your Digital Ocean Gradient AI agent and receive a response.
@@ -27,8 +29,8 @@ def rewrite_resume_with_agent(prompt: str):
     if not agent_endpoint or not agent_access_key:
         raise ValueError(
             "Missing required environment variables. "
-            "Please ensure REWRITE_RESUME_ENDPOINT and "
-            "(REWRITE_RESUME_ACCESS_KEY or DIGITALOCEAN_AGENT_ACCESS_KEY) are set in your .env file."
+            "Please ensure TAILOR_RESUME_ENDPOINT and "
+            "(TAILOR_RESUME_ACCESS_KEY or DIGITALOCEAN_AGENT_ACCESS_KEY) are set in your .env file."
         )
     
     # Clean up the values (remove quotes if present)

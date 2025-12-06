@@ -7,38 +7,93 @@ import asyncio
 import sys
 import os
 from pathlib import Path
+example_resume = """
+Ye Marn Aung
+Daly City, CA 94015| (253)-345-2360 | jaredaungfr@gmail.com|yaung2@sfsu.edu | https://github.com/JaredAung | https://www.linkedin.com/in/ye-marn-aung/ | 
 
+PROFESSIONAL SUMMARY
+Computer Science student at San Francisco State University with hands-on experience delivering full-stack and AI/ML projects from concept to production. Built and deployed applications using various tools for real-world use cases such as AI search engines, RAG-based recommenders, deep-learning networks and computer vision systems. Strong background in cloud deployment, database engineering, and applied AI models development. Seeking opportunities to apply AI and software engineering skills to scalable and user-focused products. 
+
+EDUCATION
+San Francisco State University                                                                                              	San Francisco, CA
+Bachelor of Science, Computer Science 					       	 Expected December 2026
+Minor: Mathematics
+
+PROJECT EXPERIENCE
+GaitorGate: AI-Powered Search Engine for AI Applications	          
+Team Lead, Database Engineer | Flask, Python, Apache2, Linux Ubuntu, MySQL, AWS EC2, Gunicorn, Google Gemini, Figma, Git 
+●	Led a full-stack web application project enabling users to discover AI tools using NLP-enhanced search
+●	Integrated secure authentication, NLP and keyword-based searches, a user ratings and review system, AI chatbot (Google Gemini), and deployed and maintained on the AWS EC2 with Apache2 + Gunicorn
+●	Applied Agile practices and led a 6-member team to deliver the highest-rated product in a 12 groups competition
+
+MovieCenter: RAG-based LangChain Movie Recommender System	
+Developer |LangChain, Python, Pinecone, MongoDB, Google Gemini, Next.js, React, TypeScript, Docker, AWS EC2, FastAPI, Hugging Face SentenceTransformers, TMDB API, Pandas
+●	Built a Retrieval-Augmented Generation (RAG) pipeline with LangChain, Pinecone vector DB, MongoDB and Google Gemini to deliver context-rich movie recommendations for close to 10,000 movies 
+●	Improved semantic similarity search accuracy by 30% over baseline using HuggingFace SentenceTransformers
+●	Deployed a containerized backend with Docker on AWS EC2, and exposed APIs via FastAPI, seamlessly integrated into a Next.js + React frontend
+
+Board2Board: Chess Utility AI for Over-the-Board (OTB) Game Recognition 	
+Developer | Keras, Python, OpenCV, ResNet50 Model, Numpy, Scikit-Learn, Linear Regression, Matplotlib, Scipy, Scikit-Image, TensorFlow, Joblib, Jupyter Notebook 
+●	Designed a computer vision pipeline with OpenCV to segment chessboard images into 64 cropped square images for piece recognition
+●	Fine-tuned a ResNet50 model on a custom hand-labeled dataset of 2,000+ images, achieving 94% accuracy across 13 classes (pieces and empty square) 
+●	Incorporated a Linear Regression-based thresholding system in the computer vision pipeline to adapt to variable lighting and image conditions, improving robustness across diverse board images
+
+Additional SKILLS
+Web/Cloud: REST APIs, Node.js, Flask, Next.js, React, AWS (EC2), Docker
+Programming Languages: Python, Java, JavaScript, TypeScript, SQL
+ML/AI: PyTorch, TensorFlow, Keras, HuggingFace, Scikit-Learn, OpenCV
+Databases: MySQL, MongoDB, Postgres, Pinecone	
+Tools: Firebase, Linux, Render, Github Actions, Git/GitHub 
+
+"""
 # Import from the same directory
 from resume_planner import send_prompt_to_agent
 from apify_scraper import scrape_job_posting, format_job_data_for_prompt
 
+# Import from parent directory (backend/user_job_match and backend/tailor_resume)
+backend_path = Path(__file__).parent.parent
+sys.path.insert(0, str(backend_path))
 
-async def scrape_and_tailor_resume(job_url: str) -> dict:
+from user_job_match.user_job_map import ask_agent_for_improvements
+from tailor_resume.rewrite_resume import rewrite_resume_with_agent
+
+
+async def scrape_and_tailor_resume(job_url: str, resume_text: str = None) -> dict:
     """
     Main function that scrapes a job posting and sends it to the AI agent.
     
     This function:
     1. Scrapes the job posting from the given URL
     2. Formats the scraped data into a prompt
-    3. Sends the prompt to the AI agent for resume tailoring
-    4. Returns both the scraped data and the AI response
+    3. Sends the prompt to the AI agent for resume planning (job insights)
+    4. Gets improvement suggestions by matching resume to job posting
+    5. Rewrites the resume based on improvements
+    6. Returns all the data and responses
     
     Args:
         job_url (str): URL of the job posting to scrape
+        resume_text (str, optional): The resume text to use. If not provided, uses example_resume.
         
     Returns:
         dict: Dictionary containing:
             - success (bool): Whether the operation was successful
             - job_data (dict): Scraped job information
             - formatted_prompt (str): The formatted prompt sent to AI
-            - ai_response (str): The AI agent's response
+            - ai_response (str): The AI agent's response (job insights)
+            - improvements (str): Improvement suggestions from user-job match agent
+            - rewritten_resume (str): The rewritten resume
             - error (str): Error message if any
     """
+    # Use example_resume as default if no resume_text is provided
+    resume = resume_text if resume_text else example_resume
+    
     result = {
         "success": False,
         "job_data": {},
         "formatted_prompt": "",
         "ai_response": "",
+        "improvements": "",
+        "rewritten_resume": "",
         "error": ""
     }
     
@@ -99,7 +154,7 @@ async def scrape_and_tailor_resume(job_url: str) -> dict:
         print(f"\n✓ AI Agent Response Received!")
         print(f"Response length: {len(ai_response)} characters")
         print(f"\nAI Response Preview (first 500 chars):")
-        print(ai_response[:500] + "..." if len(ai_response) > 500 else ai_response)
+        print(ai_response)
         
         # Check if response is JSON
         if ai_response.strip().startswith('{') or ai_response.strip().startswith('['):
@@ -107,8 +162,45 @@ async def scrape_and_tailor_resume(job_url: str) -> dict:
         else:
             print(f"\n⚠ Response is not JSON format")
         
+        # Step 4: Get improvement suggestions by matching resume to job posting
         print(f"\n{'='*80}")
-        print("Successfully tailored resume!")
+        print(f"STEP 4: Getting improvement suggestions")
+        print(f"{'='*80}")
+        try:
+            improvements_prompt = f"Resume: {resume} + Job Insights: {ai_response}"
+            improvements = ask_agent_for_improvements(improvements_prompt)
+            result["improvements"] = improvements
+            print(f"\n✓ Improvements Received!")
+            print(f"Improvements length: {len(improvements)} characters")
+            print(f"\nImprovements Preview (first 500 chars):")
+            print(improvements)
+        except Exception as e:
+            error_msg = f"Failed to get improvements: {str(e)}"
+            result["error"] = error_msg
+            print(f"\n❌ {error_msg}")
+        
+        # Step 5: Rewrite resume based on improvements
+        print(f"\n{'='*80}")
+        print(f"STEP 5: Rewriting resume")
+        print(f"{'='*80}")
+        try:
+            rewritten_resume_prompt = f"Improvements: {result.get('improvements', '')} + Resume: {resume}"
+            rewritten_resume = rewrite_resume_with_agent(rewritten_resume_prompt)
+            result["rewritten_resume"] = rewritten_resume
+            print(f"\n✓ Resume Rewritten!")
+            print(f"Rewritten resume length: {len(rewritten_resume)} characters")
+            print(f"\nRewritten Resume Preview (first 500 chars):")
+            print(rewritten_resume)
+        except Exception as e:
+            error_msg = f"Failed to rewrite resume: {str(e)}"
+            if result["error"]:
+                result["error"] += f" | {error_msg}"
+            else:
+                result["error"] = error_msg
+            print(f"\n❌ {error_msg}")
+        
+        print(f"\n{'='*80}")
+        print("Process completed!")
         print(f"{'='*80}\n")
         return result
         
@@ -118,7 +210,7 @@ async def scrape_and_tailor_resume(job_url: str) -> dict:
         return result
 
 
-def scrape_and_tailor_resume_sync(job_url: str) -> dict:
+def scrape_and_tailor_resume_sync(job_url: str, resume_text: str = None) -> dict:
     """
     Synchronous wrapper for scrape_and_tailor_resume.
     
@@ -126,11 +218,12 @@ def scrape_and_tailor_resume_sync(job_url: str) -> dict:
     
     Args:
         job_url (str): URL of the job posting to scrape
+        resume_text (str, optional): The resume text to use. If not provided, uses example_resume.
         
     Returns:
         dict: Same as scrape_and_tailor_resume
     """
-    return asyncio.run(scrape_and_tailor_resume(job_url))
+    return asyncio.run(scrape_and_tailor_resume(job_url, resume_text))
 
 
 if __name__ == "__main__":
@@ -144,11 +237,4 @@ if __name__ == "__main__":
     job_url = sys.argv[1]
     result = scrape_and_tailor_resume_sync(job_url)
     
-    if result["success"]:
-        print("\n" + "=" * 80)
-        print("AI RESPONSE:")
-        print("=" * 80)
-        print(result["ai_response"])
-    else:
-        print(f"\nError: {result['error']}")
 

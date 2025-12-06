@@ -5,7 +5,9 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-
+# MATCH USER RESUME TO JOB POSTING
+# PROMPT: Extract job insights from the job posting and User Resume
+# OUTPUT: Improvements
 def ask_agent_for_improvements(prompt: str):
     """
     Send a prompt to your Digital Ocean Gradient AI agent and receive a response.
@@ -237,7 +239,7 @@ Tools: Firebase, Linux, Render, Github Actions, Git/GitHub
     
     try:
         print(f"Sending prompt: {user_prompt}\n")
-        agent_response = send_prompt_to_agent(user_prompt)
+        agent_response = ask_agent_for_improvements(user_prompt)
         print(f"Agent Response:\n{agent_response}")
     except Exception as e:
         print(f"Error: {e}")
