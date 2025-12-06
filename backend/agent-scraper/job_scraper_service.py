@@ -15,54 +15,10 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-try:
-    from supabase import create_client, Client
-except ImportError:
-    print("Warning: supabase package not installed. Install it with: pip install supabase")
-    Client = None
-
-example_resume = """
-Ye Marn Aung
-Daly City, CA 94015| (253)-345-2360 | jaredaungfr@gmail.com|yaung2@sfsu.edu | https://github.com/JaredAung | https://www.linkedin.com/in/ye-marn-aung/ | 
-
-PROFESSIONAL SUMMARY
-Computer Science student at San Francisco State University with hands-on experience delivering full-stack and AI/ML projects from concept to production. Built and deployed applications using various tools for real-world use cases such as AI search engines, RAG-based recommenders, deep-learning networks and computer vision systems. Strong background in cloud deployment, database engineering, and applied AI models development. Seeking opportunities to apply AI and software engineering skills to scalable and user-focused products. 
-
-EDUCATION
-San Francisco State University                                                                                              	San Francisco, CA
-Bachelor of Science, Computer Science 					       	 Expected December 2026
-Minor: Mathematics
-
-PROJECT EXPERIENCE
-GaitorGate: AI-Powered Search Engine for AI Applications	          
-Team Lead, Database Engineer | Flask, Python, Apache2, Linux Ubuntu, MySQL, AWS EC2, Gunicorn, Google Gemini, Figma, Git 
-●	Led a full-stack web application project enabling users to discover AI tools using NLP-enhanced search
-●	Integrated secure authentication, NLP and keyword-based searches, a user ratings and review system, AI chatbot (Google Gemini), and deployed and maintained on the AWS EC2 with Apache2 + Gunicorn
-●	Applied Agile practices and led a 6-member team to deliver the highest-rated product in a 12 groups competition
-
-MovieCenter: RAG-based LangChain Movie Recommender System	
-Developer |LangChain, Python, Pinecone, MongoDB, Google Gemini, Next.js, React, TypeScript, Docker, AWS EC2, FastAPI, Hugging Face SentenceTransformers, TMDB API, Pandas
-●	Built a Retrieval-Augmented Generation (RAG) pipeline with LangChain, Pinecone vector DB, MongoDB and Google Gemini to deliver context-rich movie recommendations for close to 10,000 movies 
-●	Improved semantic similarity search accuracy by 30% over baseline using HuggingFace SentenceTransformers
-●	Deployed a containerized backend with Docker on AWS EC2, and exposed APIs via FastAPI, seamlessly integrated into a Next.js + React frontend
-
-Board2Board: Chess Utility AI for Over-the-Board (OTB) Game Recognition 	
-Developer | Keras, Python, OpenCV, ResNet50 Model, Numpy, Scikit-Learn, Linear Regression, Matplotlib, Scipy, Scikit-Image, TensorFlow, Joblib, Jupyter Notebook 
-●	Designed a computer vision pipeline with OpenCV to segment chessboard images into 64 cropped square images for piece recognition
-●	Fine-tuned a ResNet50 model on a custom hand-labeled dataset of 2,000+ images, achieving 94% accuracy across 13 classes (pieces and empty square) 
-●	Incorporated a Linear Regression-based thresholding system in the computer vision pipeline to adapt to variable lighting and image conditions, improving robustness across diverse board images
-
-Additional SKILLS
-Web/Cloud: REST APIs, Node.js, Flask, Next.js, React, AWS (EC2), Docker
-Programming Languages: Python, Java, JavaScript, TypeScript, SQL
-ML/AI: PyTorch, TensorFlow, Keras, HuggingFace, Scikit-Learn, OpenCV
-Databases: MySQL, MongoDB, Postgres, Pinecone	
-Tools: Firebase, Linux, Render, Github Actions, Git/GitHub 
-
-"""
 # Import from the same directory
 from resume_planner import send_prompt_to_agent
 from apify_scraper import scrape_job_posting, format_job_data_for_prompt
+from getting_user_resume_data import get_user_resume_text, fetch_resume_from_supabase, convert_parsed_resume_to_text
 
 # Import from parent directory (backend/user_job_match and backend/tailor_resume)
 backend_path = Path(__file__).parent.parent
@@ -84,230 +40,8 @@ except (ImportError, OSError) as e:
     convert_markdown_to_pdf = None
 
 
-def get_supabase_client() -> Optional[Client]:
-    """Create and return a Supabase client."""
-    if Client is None:
-        return None
-    
-    supabase_url = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-    
-    if not supabase_url or not supabase_key:
-        print("Warning: Supabase credentials not found in environment variables")
-        return None
-    
-    try:
-        return create_client(supabase_url, supabase_key)
-    except Exception as e:
-        print(f"Error creating Supabase client: {e}")
-        return None
-
-
-def fetch_resume_from_supabase(user_id: str) -> Optional[dict]:
-    """
-    Fetch parsed resume data from Supabase for a given user_id.
-    
-    Args:
-        user_id (str): The user's UUID
-        
-    Returns:
-        dict: Parsed resume data from database, or None if not found
-    """
-    supabase = get_supabase_client()
-    if not supabase:
-        return None
-    
-    try:
-        response = supabase.table("parsed_resumes").select("*").eq("user_id", user_id).execute()
-        
-        if response.data and len(response.data) > 0:
-            return response.data[0]
-        else:
-            print(f"No resume found for user_id: {user_id}")
-            return None
-    except Exception as e:
-        print(f"Error fetching resume from Supabase: {e}")
-        return None
-
-
-def convert_parsed_resume_to_text(parsed_resume: dict) -> str:
-    """
-    Convert parsed resume data from database to resume text format.
-    
-    Args:
-        parsed_resume (dict): Parsed resume data from database
-        
-    Returns:
-        str: Formatted resume text
-    """
-    lines = []
-    
-    # Header: Name, Location, Phone, Emails, Links
-    header_parts = []
-    if parsed_resume.get("name"):
-        header_parts.append(parsed_resume["name"])
-    if parsed_resume.get("location"):
-        header_parts.append(parsed_resume["location"])
-    if parsed_resume.get("phone"):
-        header_parts.append(parsed_resume["phone"])
-    
-    # Add emails
-    emails = parsed_resume.get("emails")
-    if emails:
-        if isinstance(emails, list):
-            header_parts.extend(emails)
-        elif isinstance(emails, str):
-            try:
-                emails_list = json.loads(emails)
-                if isinstance(emails_list, list):
-                    header_parts.extend(emails_list)
-            except:
-                header_parts.append(emails)
-    
-    # Add links
-    links = parsed_resume.get("links")
-    if links:
-        if isinstance(links, dict):
-            for key, value in links.items():
-                if value:
-                    header_parts.append(str(value))
-        elif isinstance(links, str):
-            try:
-                links_dict = json.loads(links)
-                if isinstance(links_dict, dict):
-                    for key, value in links_dict.items():
-                        if value:
-                            header_parts.append(str(value))
-            except:
-                pass
-    
-    if header_parts:
-        lines.append(" | ".join(header_parts))
-        lines.append("")
-    
-    # Professional Summary
-    if parsed_resume.get("professional_summary"):
-        lines.append("PROFESSIONAL SUMMARY")
-        lines.append(parsed_resume["professional_summary"])
-        lines.append("")
-    
-    # Education
-    education = parsed_resume.get("education")
-    if education:
-        lines.append("EDUCATION")
-        if isinstance(education, dict):
-            # If it's a dict with 'text' key (from our conversion)
-            if "text" in education:
-                lines.append(education["text"])
-            else:
-                # Otherwise, format the dict
-                lines.append(json.dumps(education, indent=2))
-        elif isinstance(education, str):
-            try:
-                education_dict = json.loads(education)
-                if isinstance(education_dict, dict) and "text" in education_dict:
-                    lines.append(education_dict["text"])
-                else:
-                    lines.append(education)
-            except:
-                lines.append(education)
-        lines.append("")
-    
-    # Work Experience
-    work_experience = parsed_resume.get("work_experience")
-    if work_experience:
-        lines.append("WORK EXPERIENCE")
-        if isinstance(work_experience, dict):
-            if "text" in work_experience:
-                lines.append(work_experience["text"])
-            else:
-                lines.append(json.dumps(work_experience, indent=2))
-        elif isinstance(work_experience, str):
-            try:
-                work_dict = json.loads(work_experience)
-                if isinstance(work_dict, dict) and "text" in work_dict:
-                    lines.append(work_dict["text"])
-                else:
-                    lines.append(work_experience)
-            except:
-                lines.append(work_experience)
-        lines.append("")
-    
-    # Projects
-    projects = parsed_resume.get("projects")
-    if projects:
-        lines.append("PROJECT EXPERIENCE")
-        if isinstance(projects, list):
-            for project in projects:
-                if isinstance(project, dict):
-                    name = project.get("name", "")
-                    description = project.get("description", "")
-                    technologies = project.get("technologies", [])
-                    
-                    tech_str = ""
-                    if technologies:
-                        if isinstance(technologies, list):
-                            tech_str = " | ".join(technologies)
-                        else:
-                            tech_str = str(technologies)
-                    
-                    if name:
-                        if tech_str:
-                            lines.append(f"{name}\t{tech_str}")
-                        else:
-                            lines.append(name)
-                    if description:
-                        # Add bullet points if description has multiple lines
-                        desc_lines = description.split("\n")
-                        for desc_line in desc_lines:
-                            if desc_line.strip():
-                                lines.append(f"●\t{desc_line.strip()}")
-                elif isinstance(project, str):
-                    lines.append(project)
-        elif isinstance(projects, str):
-            try:
-                projects_list = json.loads(projects)
-                if isinstance(projects_list, list):
-                    for project in projects_list:
-                        if isinstance(project, dict):
-                            name = project.get("name", "")
-                            description = project.get("description", "")
-                            if name:
-                                lines.append(name)
-                            if description:
-                                lines.append(f"●\t{description}")
-            except:
-                lines.append(projects)
-        lines.append("")
-    
-    # Skills
-    skills = parsed_resume.get("skills")
-    if skills:
-        lines.append("SKILLS")
-        if isinstance(skills, dict):
-            for category, skill_list in skills.items():
-                if skill_list:
-                    if isinstance(skill_list, list):
-                        skill_str = ", ".join(skill_list)
-                        lines.append(f"{category}: {skill_str}")
-                    else:
-                        lines.append(f"{category}: {skill_list}")
-        elif isinstance(skills, str):
-            try:
-                skills_dict = json.loads(skills)
-                if isinstance(skills_dict, dict):
-                    for category, skill_list in skills_dict.items():
-                        if skill_list:
-                            if isinstance(skill_list, list):
-                                skill_str = ", ".join(skill_list)
-                                lines.append(f"{category}: {skill_str}")
-                            else:
-                                lines.append(f"{category}: {skill_list}")
-            except:
-                lines.append(skills)
-        lines.append("")
-    
-    return "\n".join(lines)
+# Resume retrieval functions are now imported from getting_user_resume_data.py
+# This keeps the code modular and separates concerns
 
 
 async def scrape_and_tailor_resume(job_url: str, resume_text: str = None, user_id: str = None) -> dict:
@@ -338,30 +72,7 @@ async def scrape_and_tailor_resume(job_url: str, resume_text: str = None, user_i
             - pdf_path (str): Path to the generated PDF file
             - error (str): Error message if any
     """
-    # Determine which resume to use
-    resume = None
-    
-    if resume_text:
-        # Use provided resume text
-        resume = resume_text
-    elif user_id:
-        # Try to fetch from Supabase
-        print(f"\n{'='*80}")
-        print(f"Fetching resume from Supabase for user_id: {user_id}")
-        print(f"{'='*80}")
-        parsed_resume = fetch_resume_from_supabase(user_id)
-        if parsed_resume:
-            print("✓ Resume found in database, converting to text format...")
-            resume = convert_parsed_resume_to_text(parsed_resume)
-            print(f"Resume text length: {len(resume)} characters")
-        else:
-            print("⚠ No resume found in database, using example resume")
-            resume = example_resume
-    else:
-        # Fall back to example resume
-        print("⚠ No user_id provided and no resume_text, using example resume")
-        resume = example_resume
-    
+    # Initialize result dictionary first (before any early returns)
     result = {
         "success": False,
         "job_data": {},
@@ -372,6 +83,33 @@ async def scrape_and_tailor_resume(job_url: str, resume_text: str = None, user_i
         "pdf_path": "",
         "error": ""
     }
+    
+    # Determine which resume to use
+    resume = None
+    
+    if resume_text:
+        # Use provided resume text
+        resume = resume_text
+    elif user_id:
+        # Try to fetch from Supabase using the imported function
+        print(f"\n{'='*80}")
+        print(f"Fetching resume from Supabase for user_id: {user_id}")
+        print(f"{'='*80}")
+        resume = get_user_resume_text(user_id)
+        if resume:
+            print("✓ Resume found in database, converted to text format")
+            print(f"Resume text length: {len(resume)} characters")
+        else:
+            print("⚠ No resume found in database for this user_id")
+            print("⚠ Cannot proceed without resume data. Please upload a resume first.")
+            result["error"] = "No resume found in database. Please upload a resume first."
+            return result
+    else:
+        # No user_id provided and no resume_text
+        print("⚠ No user_id provided and no resume_text")
+        print("⚠ Cannot proceed without resume data. Please provide user_id or resume_text.")
+        result["error"] = "No resume data provided. Please provide user_id or resume_text."
+        return result
     
     try:
         # Step 1: Scrape the job posting

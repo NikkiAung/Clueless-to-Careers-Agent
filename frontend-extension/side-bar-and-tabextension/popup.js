@@ -235,12 +235,17 @@ document.getElementById('apply-job-btn').addEventListener('click', async () => {
     return;
   }
 
+  console.log('User ID retrieved from session:', userId);
+
   const tab = await getCurrentTab();
   
   if (!tab || !tab.url) {
     alert('Error: Could not get current tab URL. Please try again.');
     return;
   }
+  
+  console.log('Job URL:', tab.url);
+  console.log('Sending request with user_id:', userId);
   
   // Reset backend response flag
   window.backendResponseReceived = false;
@@ -254,11 +259,12 @@ document.getElementById('apply-job-btn').addEventListener('click', async () => {
   const progressPromise = simulateAIProcessing();
   
   // Send message to background script to start AI processing
+  // This will pass user_id to the backend API to fetch resume from Supabase
   chrome.runtime.sendMessage({
     type: 'START_JOB_APPLICATION',
     tabUrl: tab.url,
     tabId: tab.id,
-    userId: userId, // Pass user_id to fetch resume from Supabase
+    userId: userId, // Pass user_id to fetch resume from Supabase database
   }, (response) => {
     if (chrome.runtime.lastError) {
       console.error('Error:', chrome.runtime.lastError);

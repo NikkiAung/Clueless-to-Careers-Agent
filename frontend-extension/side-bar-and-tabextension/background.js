@@ -39,7 +39,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'START_JOB_APPLICATION') {
     // Handle job application start - call backend scraper
     console.log('Starting job application for:', message.tabUrl);
-    console.log('User ID:', message.userId);
+    console.log('User ID received:', message.userId);
     
     // First, check if backend server is running with a health check
     const healthCheckPromise = fetch('http://127.0.0.1:5001/api/health', {
@@ -54,10 +54,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       job_url: message.tabUrl
     };
     
-    // Add user_id if provided (to fetch resume from Supabase)
+    // Add user_id if provided (to fetch resume from Supabase database)
     if (message.userId) {
       requestBody.user_id = message.userId;
+      console.log('Adding user_id to request body:', message.userId);
+      console.log('Backend will fetch resume from Supabase using this user_id');
+    } else {
+      console.warn('No user_id provided - backend will require resume data');
     }
+    
+    console.log('Request body being sent to backend:', JSON.stringify(requestBody, null, 2));
     
     // Check health first, then proceed with the main request
     healthCheckPromise.then(healthResponse => {

@@ -8,6 +8,22 @@ import os
 import json
 import tempfile
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file in backend directory or root directory
+backend_dir = Path(__file__).parent
+root_dir = backend_dir.parent
+
+if (backend_dir / ".env").exists():
+    load_dotenv(backend_dir / ".env")
+    print(f"✓ Loaded .env from backend directory: {backend_dir / '.env'}")
+elif (root_dir / ".env").exists():
+    load_dotenv(root_dir / ".env")
+    print(f"✓ Loaded .env from root directory: {root_dir / '.env'}")
+else:
+    # Try default location
+    load_dotenv()
+    print("⚠ Using default load_dotenv() - .env file location not explicitly found")
 
 # Add agent-scraper to path
 agent_scraper_path = Path(__file__).parent / "agent-scraper"
@@ -96,9 +112,11 @@ def scrape_and_tailor():
         print(f"\n{'='*80}")
         print(f"Received request to scrape: {job_url}")
         if user_id:
-            print(f"User ID provided: {user_id} (will fetch resume from Supabase)")
+            print(f"✓ User ID provided: {user_id}")
+            print(f"  → Will fetch resume from Supabase database using getting_user_resume_data.py")
         else:
-            print("No user_id provided (will use example resume)")
+            print("⚠ No user_id provided")
+            print("  → Backend will return error: resume data required")
         print(f"{'='*80}\n")
         
         # Scrape and tailor resume
