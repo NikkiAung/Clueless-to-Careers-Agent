@@ -310,19 +310,43 @@ document.getElementById('open-sidebar-btn').addEventListener('click', async () =
     return;
   }
 
-  // Get current tab to get windowId
+  // Get current tab
   const tab = await getCurrentTab();
   
-  // Open sidebar panel
-  chrome.runtime.sendMessage({
-    type: 'OPEN_SIDEBAR',
-    tabId: tab.id,
-  }, (response) => {
-    // Close popup after sidebar opens
-    if (response && response.success) {
-      window.close();
+  if (!tab || !tab.id) {
+    alert('Error: Could not get current tab. Please try again.');
+    return;
+  }
+  
+  console.log('Opening sidebar for tab:', tab.id);
+  
+  // IMPORTANT: sidePanel.open() must be called directly from user gesture context
+  // Calling it from background script loses the user gesture context
+  try {
+    // Check if sidePanel API is available
+    if (!chrome.sidePanel || !chrome.sidePanel.open) {
+      throw new Error('sidePanel API is not available. Make sure you\'re using Chrome 116+ and the extension has sidePanel permission.');
     }
-  });
+    
+    // Open sidebar directly from popup (has user gesture context)
+    await chrome.sidePanel.open({ tabId: tab.id });
+    console.log('Sidebar opened successfully, closing popup');
+    
+    // Close popup after sidebar opens
+    window.close();
+  } catch (error) {
+    console.error('Error opening sidebar:', error);
+    
+    // Fallback: try with windowId
+    try {
+      await chrome.sidePanel.open({ windowId: tab.windowId });
+      console.log('Sidebar opened successfully (fallback), closing popup');
+      window.close();
+    } catch (fallbackError) {
+      console.error('Error opening sidebar (fallback):', fallbackError);
+      alert('Error opening sidebar: ' + fallbackError.message + '\n\nMake sure you\'re using Chrome 116+ and the extension has sidePanel permission.');
+    }
+  }
 });
 
 document.getElementById('back-to-choice-btn').addEventListener('click', () => {

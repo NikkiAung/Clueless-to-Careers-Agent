@@ -1,40 +1,79 @@
 // Handle popup vs sidebar logic
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'OPEN_SIDEBAR') {
-    // Get the current window to open sidebar
-    chrome.windows.getCurrent((window) => {
-      if (window) {
-        chrome.sidePanel.open({ windowId: window.id })
-          .then(() => {
-            console.log('Sidebar opened successfully');
-            sendResponse({ success: true });
-          })
-          .catch((error) => {
-            console.error('Error opening sidebar:', error);
-            // Try alternative method if first fails
-            if (message.tabId) {
-              chrome.tabs.get(message.tabId, (tab) => {
-                if (tab) {
-                  chrome.sidePanel.open({ windowId: tab.windowId })
-                    .then(() => {
-                      sendResponse({ success: true });
-                    })
-                    .catch((err) => {
-                      console.error('Error opening sidebar (fallback):', err);
-                      sendResponse({ success: false, error: err.message });
-                    });
-                } else {
-                  sendResponse({ success: false, error: 'Could not get tab or window' });
-                }
-              });
+    console.log('OPEN_SIDEBAR message received, tabId:', message.tabId);
+    
+    // Try to open sidebar using tabId first (more reliable in Chrome 116+)
+    if (message.tabId) {
+      chrome.tabs.get(message.tabId)
+        .then((tab) => {
+          if (!tab) {
+            throw new Error('Tab not found');
+          }
+          console.log('Opening sidebar for tab:', tab.id, 'window:', tab.windowId);
+          
+          // Try opening with tabId first (Chrome 116+)
+          return chrome.sidePanel.open({ tabId: tab.id })
+            .catch((err) => {
+              console.log('Failed with tabId, trying windowId:', err);
+              // Fallback to windowId
+              return chrome.sidePanel.open({ windowId: tab.windowId });
+            });
+        })
+        .then(() => {
+          console.log('Sidebar opened successfully');
+          sendResponse({ success: true });
+        })
+        .catch((error) => {
+          console.error('Error opening sidebar with tabId:', error);
+          
+          // Fallback: try with current window
+          chrome.windows.getCurrent((window) => {
+            if (window && chrome.sidePanel && chrome.sidePanel.open) {
+              chrome.sidePanel.open({ windowId: window.id })
+                .then(() => {
+                  console.log('Sidebar opened successfully (fallback)');
+                  sendResponse({ success: true });
+                })
+                .catch((err) => {
+                  console.error('Error opening sidebar (final fallback):', err);
+                  sendResponse({ 
+                    success: false, 
+                    error: `Failed to open sidebar: ${err.message}. Make sure you're using Chrome 116+ and the extension has sidePanel permission.` 
+                  });
+                });
             } else {
-              sendResponse({ success: false, error: error.message });
+              sendResponse({ 
+                success: false, 
+                error: `Could not open sidebar: ${error.message}. Window: ${window ? 'found' : 'not found'}, sidePanel API: ${chrome.sidePanel ? 'available' : 'not available'}` 
+              });
             }
           });
-      } else {
-        sendResponse({ success: false, error: 'Could not get current window' });
-      }
-    });
+        });
+    } else {
+      // No tabId provided, try with current window
+      chrome.windows.getCurrent((window) => {
+        if (window && chrome.sidePanel && chrome.sidePanel.open) {
+          chrome.sidePanel.open({ windowId: window.id })
+            .then(() => {
+              console.log('Sidebar opened successfully');
+              sendResponse({ success: true });
+            })
+            .catch((error) => {
+              console.error('Error opening sidebar:', error);
+              sendResponse({ 
+                success: false, 
+                error: `Failed to open sidebar: ${error.message}` 
+              });
+            });
+        } else {
+          sendResponse({ 
+            success: false, 
+            error: 'Could not get current window or sidePanel API not available' 
+          });
+        }
+      });
+    }
     return true; // Keep message channel open for async response
   } else if (message.type === 'START_JOB_APPLICATION') {
     // Handle job application start - call backend scraper

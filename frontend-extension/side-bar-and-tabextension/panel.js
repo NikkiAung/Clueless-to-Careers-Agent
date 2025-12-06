@@ -65,7 +65,12 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.addEventListener("message", (event) => {
-  const { type, productUrl } = event.data || {};
+  // Only accept messages from localhost:3000 for security
+  if (!event.origin.includes("localhost:3000") && !event.origin.includes("127.0.0.1:3000")) {
+    return;
+  }
+
+  const { type, productUrl, path } = event.data || {};
 
   if (type === "START_AUTOMATION") {
     console.log("Automation requested for:", productUrl);
@@ -74,5 +79,16 @@ window.addEventListener("message", (event) => {
       type: "START_AUTOMATION",
       productUrl,
     });
+  }
+
+  // Handle navigation requests from iframe
+  if (type === "NAVIGATE" && path) {
+    console.log("Navigation requested from iframe:", path);
+    const iframe = document.getElementById("preview");
+    if (iframe) {
+      const baseUrl = iframe.src.split('/').slice(0, 3).join('/');
+      const newUrl = path.startsWith('http') ? path : `${baseUrl}${path}`;
+      openLink(newUrl);
+    }
   }
 });

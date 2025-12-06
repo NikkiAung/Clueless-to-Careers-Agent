@@ -65,16 +65,46 @@ async def scrape_job_posting(url: str) -> Dict[str, str]:
         """Handle the page scraping logic"""
         page: Page = context.page
         
-        # Wait for page to load
-        await page.wait_for_load_state("networkidle", timeout=30000)
+        # Set user agent to avoid detection
+        try:
+            await page.set_extra_http_headers({
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            })
+        except Exception as e:
+            print(f"Warning: Could not set user agent: {e}")
+        
+        # Wait for page to load with multiple strategies
+        try:
+            await page.wait_for_load_state("networkidle", timeout=30000)
+        except Exception as e:
+            print(f"Warning: networkidle timeout, trying domcontentloaded: {e}")
+            try:
+                await page.wait_for_load_state("domcontentloaded", timeout=10000)
+            except Exception as e2:
+                print(f"Warning: domcontentloaded also timed out: {e2}")
+        
+        # Additional wait for dynamic content
+        await asyncio.sleep(2)
         
         # Get the full page text first (important fallback)
         try:
             full_text = await page.inner_text("body")
             job_data["full_text"] = full_text
-            print(f"Extracted full_text length: {len(full_text)}")
+            print(f"✓ Extracted full_text length: {len(full_text)} characters")
+            
+            # Check if we got meaningful content
+            if len(full_text) < 100:
+                print(f"⚠ Warning: Full text is very short ({len(full_text)} chars). Page might require authentication or have blocking.")
+                # Try to get page title as fallback
+                try:
+                    title = await page.title()
+                    print(f"Page title: {title}")
+                    if title and len(title) > 10:
+                        job_data["full_text"] = f"{title}\n\n{full_text}"
+                except:
+                    pass
         except Exception as e:
-            print(f"Error getting full text: {e}")
+            print(f"❌ Error getting full text: {e}")
             job_data["full_text"] = ""
         
         # Try to extract structured data based on common job site patterns
@@ -417,37 +447,129 @@ async def _scrape_hyundai(page: Page, job_data: Dict[str, str]) -> None:
 async def _scrape_generic(page: Page, job_data: Dict[str, str]) -> None:
     """Generic scraping for unknown job sites"""
     try:
-        # Try common selectors
-        job_data["job_title"] = await _safe_get_text(page, "h1, h2.job-title, h1.title")
-        job_data["company"] = await _safe_get_text(page, "a.company, span.company-name, .company")
-        job_data["location"] = await _safe_get_text(page, "span.location, div.location, .location")
+        print("Using generic scraper for unknown job site...")
         
-        # Try to find main content area
+        # Try common selectors for job title (more comprehensive)
+        title_selectors = [
+            "h1",
+            "h1.job-title",
+            "h1.title",
+            "h2.job-title",
+            "[data-testid='job-title']",
+            "[itemprop='title']",
+            ".job-title",
+            ".jobTitle",
+            "h1[class*='title']",
+            "h1[class*='job']"
+        ]
+        for selector in title_selectors:
+            text = await _safe_get_text(page, selector)
+            if text and len(text) > 5 and len(text) < 200:
+                job_data["job_title"] = text
+                print(f"✓ Found job title: {text[:50]}...")
+                break
+        
+        # Try common selectors for company
+        company_selectors = [
+            "a.company",
+            "span.company-name",
+            ".company",
+            "[data-testid='company-name']",
+            "[itemprop='name']",
+            ".companyName",
+            "a[class*='company']",
+            "span[class*='company']"
+        ]
+        for selector in company_selectors:
+            text = await _safe_get_text(page, selector)
+            if text and len(text) > 2 and len(text) < 100:
+                job_data["company"] = text
+                print(f"✓ Found company: {text}")
+                break
+        
+        # Try common selectors for location
+        location_selectors = [
+            "span.location",
+            "div.location",
+            ".location",
+            "[data-testid='job-location']",
+            "[itemprop='address']",
+            ".jobLocation"
+        ]
+        for selector in location_selectors:
+            text = await _safe_get_text(page, selector)
+            if text and len(text) > 3 and len(text) < 200:
+                job_data["location"] = text
+                print(f"✓ Found location: {text}")
+                break
+        
+        # Try to find main content area (more comprehensive)
         content_selectors = [
             "div.job-description",
             "div.description",
             "div.content",
             "article",
             "main",
-            "div[role='main']"
+            "div[role='main']",
+            "[data-testid='job-description']",
+            "[itemprop='description']",
+            ".jobDescription",
+            ".job-description-text",
+            "div[class*='description']",
+            "div[class*='content']",
+            "section",
+            "#job-description",
+            ".job-details"
         ]
         
         for selector in content_selectors:
             text = await _safe_get_text(page, selector)
             if text and len(text) > 200:  # Likely the main description
                 job_data["job_description"] = text
+                print(f"✓ Found job description ({len(text)} chars) using selector: {selector}")
                 break
+        
+        # If we still don't have a description, try to extract from full_text
+        if not job_data.get("job_description") and job_data.get("full_text"):
+            full_text = job_data["full_text"]
+            # Try to find the main content by looking for the longest paragraph
+            # Remove common navigation/footer text
+            lines = full_text.split('\n')
+            meaningful_lines = [line.strip() for line in lines if len(line.strip()) > 50]
+            if meaningful_lines:
+                # Take the longest meaningful section
+                longest_section = max(meaningful_lines, key=len)
+                if len(longest_section) > 200:
+                    job_data["job_description"] = longest_section
+                    print(f"✓ Extracted job description from full_text ({len(longest_section)} chars)")
         
         # Extract sections from full text
         full_desc = job_data["job_description"] or job_data["full_text"]
-        job_data["responsibilities"] = _extract_section(full_desc, ["responsibilities", "duties", "what you'll do"])
-        job_data["skills"] = _extract_section(full_desc, ["qualifications", "requirements", "skills", "competencies"])
-        job_data["education"] = _extract_section(full_desc, ["education", "degree", "bachelor", "master"])
-        job_data["experience"] = _extract_section(full_desc, ["experience", "years", "minimum"])
-        job_data["benefits"] = _extract_section(full_desc, ["benefits", "compensation", "salary", "perks"])
+        if full_desc:
+            job_data["responsibilities"] = _extract_section(full_desc, ["responsibilities", "duties", "what you'll do", "key responsibilities"])
+            job_data["skills"] = _extract_section(full_desc, ["qualifications", "requirements", "skills", "competencies", "what you bring"])
+            job_data["education"] = _extract_section(full_desc, ["education", "degree", "bachelor", "master", "phd"])
+            job_data["experience"] = _extract_section(full_desc, ["experience", "years", "minimum", "required experience"])
+            job_data["benefits"] = _extract_section(full_desc, ["benefits", "compensation", "salary", "perks", "what we offer"])
+            
+            # Log what we extracted
+            if job_data["responsibilities"]:
+                print(f"✓ Extracted responsibilities ({len(job_data['responsibilities'])} chars)")
+            if job_data["skills"]:
+                print(f"✓ Extracted skills ({len(job_data['skills'])} chars)")
+            if job_data["education"]:
+                print(f"✓ Extracted education ({len(job_data['education'])} chars)")
+            if job_data["experience"]:
+                print(f"✓ Extracted experience ({len(job_data['experience'])} chars)")
+            if job_data["benefits"]:
+                print(f"✓ Extracted benefits ({len(job_data['benefits'])} chars)")
+        else:
+            print("⚠ No description or full_text available for section extraction")
         
     except Exception as e:
-        print(f"Error in generic scraping: {e}")
+        print(f"❌ Error in generic scraping: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 async def _safe_get_text(page: Page, selector: str) -> str:

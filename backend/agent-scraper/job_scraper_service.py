@@ -143,7 +143,25 @@ async def scrape_and_tailor_resume(job_url: str, resume_text: str = None, user_i
         )
         
         if not has_data:
-            result["error"] = "Failed to extract sufficient job information from the URL. The page might require authentication or have a different structure."
+            # Provide more detailed error message
+            full_text_len = len(job_data.get("full_text", ""))
+            error_details = []
+            if full_text_len == 0:
+                error_details.append("No content was extracted from the page")
+            elif full_text_len < 100:
+                error_details.append(f"Only {full_text_len} characters were extracted (likely a login page or blocked content)")
+            else:
+                error_details.append(f"Extracted {full_text_len} characters but couldn't identify job-specific information")
+            
+            if not job_data.get("job_title"):
+                error_details.append("Could not find job title")
+            if not job_data.get("job_description"):
+                error_details.append("Could not find job description")
+            
+            error_msg = "Failed to extract sufficient job information from the URL. " + "; ".join(error_details) + ". The page might require authentication, have anti-scraping measures, or use a different structure than expected."
+            result["error"] = error_msg
+            print(f"\n❌ {error_msg}")
+            print(f"Full text preview (first 500 chars): {job_data.get('full_text', '')[:500]}")
             return result
         
         # If we have full_text but no formatted prompt, use full_text

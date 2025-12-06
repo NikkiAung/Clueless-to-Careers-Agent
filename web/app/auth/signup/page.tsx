@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,6 +9,7 @@ import { Mail, Lock, User, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-
 
 export default function SignUpPage() {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -16,38 +17,96 @@ export default function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // Check if user is already authenticated
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          console.log("User already authenticated, redirecting to profile");
+          router.push("/profile");
+          router.refresh();
+        } else {
+          console.log("User not authenticated, showing signup form");
+          setIsCheckingAuth(false);
+        }
+      } catch (err) {
+        console.error("Error checking auth:", err);
+        setIsCheckingAuth(false);
+      }
+    };
+    
+    checkAuth();
+  }, [router]);
 
   const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
+    
+    console.log("=== Form submission triggered ===", { name, email, loading, passwordLength: password.length });
+    
     setError("");
 
+    // Validate form fields
+    if (!name.trim()) {
+      console.log("Validation failed: Name is required");
+      setError("Name is required");
+      setLoading(false);
+      return;
+    }
+
+    if (!email.trim()) {
+      console.log("Validation failed: Email is required");
+      setError("Email is required");
+      setLoading(false);
+      return;
+    }
+
     if (password !== confirmPassword) {
+      console.log("Validation failed: Passwords do not match");
       setError("Passwords do not match");
+      setLoading(false);
       return;
     }
 
     if (password.length < 6) {
+      console.log("Validation failed: Password too short");
       setError("Password must be at least 6 characters");
+      setLoading(false);
       return;
     }
 
+    console.log("Validation passed, starting signup...");
     setLoading(true);
 
     try {
       const supabase = createClient();
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password,
         options: {
           data: {
-            name: name,
+            name: name.trim(),
           },
         },
       });
 
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        console.error("Sign up error:", signUpError);
+        throw signUpError;
+      }
 
       if (data.user) {
+        console.log("Signup successful, user created:", data.user.id);
+        
         // Wait a moment for the trigger to create the profile, then upsert with name
         await new Promise(resolve => setTimeout(resolve, 500));
         
@@ -56,7 +115,7 @@ export default function SignUpPage() {
           .from("profiles")
           .upsert({
             id: data.user.id,
-            name: name,
+            name: name.trim(),
             updated_at: new Date().toISOString()
           }, {
             onConflict: 'id'
@@ -67,15 +126,58 @@ export default function SignUpPage() {
           // Don't throw, just log - the trigger might have already created it
         }
 
-        router.push("/profile");
-        router.refresh();
+        console.log("Navigating to profile page...");
+        // Navigate to profile after successful signup
+        // Check if we're in an iframe (Chrome extension context)
+        const isInIframe = window.self !== window.top;
+        
+        if (isInIframe) {
+          console.log("Detected iframe context, attempting navigation");
+          try {
+            // Try using postMessage to request navigation from parent (extension)
+            if (window.parent && window.parent !== window.self) {
+              window.parent.postMessage(
+                { type: "NAVIGATE", path: "/profile" },
+                "*" // In extension context, we can use wildcard
+              );
+              console.log("Navigation message sent to parent");
+            }
+            
+            // Also try direct navigation as fallback
+            setTimeout(() => {
+              window.location.href = "/profile";
+            }, 100);
+          } catch (err) {
+            console.error("Error navigating in iframe:", err);
+            // Fallback to direct navigation
+            window.location.href = "/profile";
+          }
+        } else {
+          // Normal Next.js navigation
+          setTimeout(() => {
+            router.push("/profile");
+            router.refresh();
+          }, 100);
+        }
+      } else {
+        console.error("No user data returned from sign up");
+        throw new Error("No user data returned from sign up");
       }
     } catch (err: any) {
+      console.error("Sign up error:", err);
       setError(err.message || "Failed to create account");
-    } finally {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center px-6 py-12">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center px-6 py-12">
@@ -106,7 +208,16 @@ export default function SignUpPage() {
             </motion.div>
           )}
 
-          <form onSubmit={handleSignUp} className="space-y-6">
+          <form 
+            ref={formRef} 
+            onSubmit={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log("Form onSubmit triggered (should not happen with button type='button')");
+            }} 
+            className="space-y-6" 
+            noValidate
+          >
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-neutral-300 mb-2">
                 Full Name
@@ -188,8 +299,52 @@ export default function SignUpPage() {
             </div>
 
             <motion.button
-              type="submit"
-              disabled={loading}
+              type="button"
+              disabled={loading || isCheckingAuth}
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Prevent any default navigation
+                if (e.nativeEvent) {
+                  e.nativeEvent.preventDefault();
+                  e.nativeEvent.stopPropagation();
+                  e.nativeEvent.stopImmediatePropagation();
+                }
+                
+                console.log("=== BUTTON CLICKED ===", { 
+                  loading, 
+                  isCheckingAuth,
+                  name, 
+                  email,
+                  passwordLength: password.length,
+                  confirmPasswordLength: confirmPassword.length
+                });
+                
+                if (loading || isCheckingAuth) {
+                  console.log("Button disabled, returning early");
+                  return;
+                }
+                
+                // Manually create a form event and call the handler
+                const syntheticEvent = {
+                  preventDefault: () => {
+                    console.log("preventDefault called");
+                  },
+                  stopPropagation: () => {
+                    console.log("stopPropagation called");
+                  },
+                } as React.FormEvent<HTMLFormElement>;
+                
+                console.log("Calling handleSignUp...");
+                await handleSignUp(syntheticEvent);
+                console.log("handleSignUp completed");
+              }}
+              onMouseDown={(e) => {
+                // Also prevent on mousedown to catch it early
+                e.preventDefault();
+                e.stopPropagation();
+              }}
               whileHover={{ scale: loading ? 1 : 1.02 }}
               whileTap={{ scale: loading ? 1 : 0.98 }}
               className="w-full py-3 bg-white text-black rounded-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
