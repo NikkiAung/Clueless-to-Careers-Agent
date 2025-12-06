@@ -5,11 +5,78 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clueless-to-Careers-Agent</title>
   <link rel="stylesheet" href="popup.css">
+  <!-- Load config first -->
+  <script src="config.js"></script>
+  <!-- Load Supabase library (local file to comply with CSP) -->
+  <script src="supabase-js.min.js"></script>
 </head>
 <body>
   <div class="popup-container">
+    <!-- Auth View: Sign In / Sign Up -->
+    <div id="auth-view" class="view active">
+      <div class="auth-container">
+        <div class="header">
+          <div class="logo-container">
+            <div class="logo-icon">🚀</div>
+          </div>
+          <h1>Clueless to Careers Agent</h1>
+          <p class="subtitle">Sign in to continue</p>
+        </div>
+
+        <div id="auth-tabs" class="auth-tabs">
+          <button class="auth-tab active" data-tab="signin">Sign In</button>
+          <button class="auth-tab" data-tab="signup">Sign Up</button>
+        </div>
+
+        <!-- Sign In Form -->
+        <div id="signin-form" class="auth-form active">
+          <form id="signin-form-element">
+            <div class="form-group">
+              <label for="signin-email">Email</label>
+              <input type="email" id="signin-email" required placeholder="you@example.com">
+            </div>
+            <div class="form-group">
+              <label for="signin-password">Password</label>
+              <input type="password" id="signin-password" required placeholder="••••••••">
+            </div>
+            <div id="signin-error" class="error-message" style="display: none;"></div>
+            <button type="submit" class="auth-submit-btn" id="signin-submit">
+              Sign In
+            </button>
+          </form>
+        </div>
+
+        <!-- Sign Up Form -->
+        <div id="signup-form" class="auth-form">
+          <form id="signup-form-element">
+            <div class="form-group">
+              <label for="signup-name">Full Name</label>
+              <input type="text" id="signup-name" required placeholder="John Doe">
+            </div>
+            <div class="form-group">
+              <label for="signup-email">Email</label>
+              <input type="email" id="signup-email" required placeholder="you@example.com">
+            </div>
+            <div class="form-group">
+              <label for="signup-password">Password</label>
+              <input type="password" id="signup-password" required minlength="6" placeholder="••••••••">
+              <small>Must be at least 6 characters</small>
+            </div>
+            <div class="form-group">
+              <label for="signup-confirm-password">Confirm Password</label>
+              <input type="password" id="signup-confirm-password" required placeholder="••••••••">
+            </div>
+            <div id="signup-error" class="error-message" style="display: none;"></div>
+            <button type="submit" class="auth-submit-btn" id="signup-submit">
+              Sign Up
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <!-- Initial View: Choice Selection -->
-    <div id="choice-view" class="view active">
+    <div id="choice-view" class="view">
       <div class="header">
         <div class="logo-container">
           <div class="logo-icon">🚀</div>
@@ -49,6 +116,11 @@
       <div class="job-detection-badge" id="job-badge" style="display: none;">
         <span class="badge-icon">✨</span>
         <span>Job posting detected!</span>
+      </div>
+
+      <div class="user-info" id="user-info" style="display: none;">
+        <div class="user-email" id="user-email"></div>
+        <button id="sign-out-btn" class="sign-out-btn">Sign Out</button>
       </div>
     </div>
 
