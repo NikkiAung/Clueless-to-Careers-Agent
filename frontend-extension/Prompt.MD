@@ -1,0 +1,6 @@
+My plan is to build Ai Agent that tailor user reusme to the job description, using Digital Ocean backend AI agent (So do worry about backend right now). Focus on frontend.
+
+
+Right now, there is side bar extension. When the user clicks the side bar just poped up from the right side (frontend-extension/side-bar-extension), i also wanna add another extetion (popup.html) when user click on the exteion icon, where it show little mini icon (using HTML, CSS, JavaScript), what this little icon gonna be integrated in the future is the ai agent that sits inside the brower. When the user goes to the specific website to apply job, from the frontend there should be option for users to apply to current job in current tab. When the user says "yes" from frontend, the backend gonna be doing resume tailor job using ai agent. And the frontend part should show the ai agent processing in UI with loading effect and completing effect once its done. So im thinking of two option, when the user clicks on the current icon from frontend-extension/side-bar-extension. It should show two options for user 1st is apply for job, if yes it should show the popup.html if not the slide should come from the right side.
+
+Pls don't limit to what im saying, stay creative and impressive

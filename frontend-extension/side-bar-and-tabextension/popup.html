@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clueless-to-Careers-Agent</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Initial View: Choice Selection -->
+    <div id="choice-view" class="view active">
+      <div class="header">
+        <div class="logo-container">
+          <div class="logo-icon">🚀</div>
+        </div>
+        <h1>Clueless-to-Careers-Agent</h1>
+        <p class="subtitle">Your AI-powered career assistant</p>
+      </div>
+
+      <div class="current-site-info" id="site-info">
+        <div class="site-icon">🌐</div>
+        <div class="site-details">
+          <span class="site-label">Current Site:</span>
+          <span class="site-url" id="current-url">Loading...</span>
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button id="apply-job-btn" class="action-btn primary">
+          <span class="btn-icon">💼</span>
+          <div class="btn-content">
+            <span class="btn-title">Apply for Job</span>
+            <span class="btn-subtitle">Tailor resume with AI</span>
+          </div>
+          <span class="btn-arrow">→</span>
+        </button>
+
+        <button id="open-sidebar-btn" class="action-btn secondary">
+          <span class="btn-icon">📋</span>
+          <div class="btn-content">
+            <span class="btn-title">Open Sidebar</span>
+            <span class="btn-subtitle">Browse your apps</span>
+          </div>
+          <span class="btn-arrow">→</span>
+        </button>
+      </div>
+
+      <div class="job-detection-badge" id="job-badge" style="display: none;">
+        <span class="badge-icon">✨</span>
+        <span>Job posting detected!</span>
+      </div>
+    </div>
+
+    <!-- AI Processing View -->
+    <div id="processing-view" class="view">
+      <div class="processing-container">
+        <div class="ai-logo">
+          <div class="pulse-ring"></div>
+          <div class="ai-icon">🤖</div>
+        </div>
+        
+        <h2>AI Agent Processing</h2>
+        <p class="processing-subtitle">Tailoring your resume to match the job description...</p>
+
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <div class="progress-steps">
+            <div class="step active" id="step-1">
+              <span class="step-icon">📄</span>
+              <span class="step-text">Analyzing job description</span>
+            </div>
+            <div class="step" id="step-2">
+              <span class="step-icon">✏️</span>
+              <span class="step-text">Tailoring resume content</span>
+            </div>
+            <div class="step" id="step-3">
+              <span class="step-icon">✨</span>
+              <span class="step-text">Optimizing keywords</span>
+            </div>
+            <div class="step" id="step-4">
+              <span class="step-icon">✅</span>
+              <span class="step-text">Finalizing resume</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="processing-stats">
+          <div class="stat">
+            <span class="stat-value" id="match-score">0%</span>
+            <span class="stat-label">Match Score</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" id="keywords-matched">0</span>
+            <span class="stat-label">Keywords Matched</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Completion View -->
+    <div id="completion-view" class="view">
+      <div class="completion-container">
+        <div class="success-animation">
+          <div class="checkmark-circle">
+            <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+              <circle class="checkmark-circle-bg" cx="26" cy="26" r="25" fill="none"/>
+              <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+            </svg>
+          </div>
+        </div>
+
+        <h2>Resume Tailored Successfully!</h2>
+        <p class="completion-subtitle">Your resume has been optimized for this position</p>
+
+        <div class="completion-stats">
+          <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-info">
+              <span class="stat-value" id="final-match-score">95%</span>
+              <span class="stat-label">Match Score</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🔑</div>
+            <div class="stat-info">
+              <span class="stat-value" id="final-keywords">24</span>
+              <span class="stat-label">Keywords Matched</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="completion-actions">
+          <button id="download-resume-btn" class="action-btn primary">
+            <span class="btn-icon">📥</span>
+            <span>Download Tailored Resume</span>
+          </button>
+          <button id="view-resume-btn" class="action-btn secondary">
+            <span class="btn-icon">👁️</span>
+            <span>Preview Resume</span>
+          </button>
+        </div>
+
+        <button id="back-to-choice-btn" class="back-btn">
+          ← Back to Options
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+
