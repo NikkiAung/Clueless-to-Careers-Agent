@@ -1,7 +1,7 @@
-const DEFAULT_URL = "https://amazon-scraping-to-automate-shoppin.vercel.app/";
+const DEFAULT_URL = "http://localhost:3000";
 const SIDEBAR_ITEMS = [
   {
-    url: "https://amazon-scraping-to-automate-shoppin.vercel.app/",
+    url: "http://localhost:3000",
     title: "My App",
     icon: "logos/amazon_scraping.png",
   },

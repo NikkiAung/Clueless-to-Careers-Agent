@@ -28,22 +28,28 @@ if sys.platform == 'darwin':  # macOS
 
 try:
     import markdown
-    from weasyprint import HTML, CSS
-    from weasyprint.text.fonts import FontConfiguration
 except ImportError:
-    raise ImportError(
-        "Required packages are not installed. Install them with:\n"
-        "  pip install markdown weasyprint"
-    )
-except OSError as e:
-    if 'libgobject' in str(e) or 'gobject' in str(e):
-        raise ImportError(
-            "WeasyPrint requires system libraries. Please install them:\n"
-            "  macOS: brew install pango gdk-pixbuf gobject-introspection\n"
-            "  Linux: sudo apt-get install python3-cffi python3-pango python3-gi\n"
-            f"\nOriginal error: {e}"
-        ) from e
-    raise
+    markdown = None
+
+# Lazy import for WeasyPrint - only import when actually needed
+# This allows the server to start even if WeasyPrint dependencies aren't installed
+_weasyprint_available = False
+_weasyprint_error = None
+
+def _check_weasyprint():
+    """Check if WeasyPrint is available and can be imported."""
+    global _weasyprint_available, _weasyprint_error
+    if _weasyprint_available:
+        return True
+    
+    try:
+        from weasyprint import HTML, CSS
+        from weasyprint.text.fonts import FontConfiguration
+        _weasyprint_available = True
+        return True
+    except Exception as e:
+        _weasyprint_error = str(e)
+        return False
 
 
 def convert_markdown_to_pdf(
@@ -61,6 +67,7 @@ def convert_markdown_to_pdf(
         Path to the generated PDF file
 
     Raises:
+        ImportError: If WeasyPrint or its dependencies are not available
         RuntimeError: If conversion fails
     """
     if not markdown_content or not markdown_content.strip():
@@ -70,6 +77,27 @@ def convert_markdown_to_pdf(
     
     # Ensure output directory exists
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Check if markdown is available
+    if not markdown:
+        raise ImportError("markdown package is not installed. Install it with: pip install markdown")
+    
+    # Check if WeasyPrint is available (lazy import)
+    if not _check_weasyprint():
+        error_msg = (
+            "WeasyPrint is not available. This is required for PDF conversion.\n\n"
+            "To fix this on macOS, install the required system libraries:\n"
+            "  brew install pango gdk-pixbuf gobject-introspection\n\n"
+            "Then reinstall weasyprint:\n"
+            "  pip install --upgrade weasyprint\n\n"
+        )
+        if _weasyprint_error:
+            error_msg += f"Original error: {_weasyprint_error}"
+        raise ImportError(error_msg)
+    
+    # Import WeasyPrint now that we know it's available
+    from weasyprint import HTML, CSS
+    from weasyprint.text.fonts import FontConfiguration
     
     try:
         # Convert markdown to HTML

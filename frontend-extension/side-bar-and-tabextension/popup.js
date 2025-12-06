@@ -227,6 +227,14 @@ document.getElementById('apply-job-btn').addEventListener('click', async () => {
     return;
   }
 
+  // Get user_id from session
+  const userId = session.user?.id;
+  if (!userId) {
+    alert('Error: Could not get user ID. Please sign in again.');
+    showView('auth');
+    return;
+  }
+
   const tab = await getCurrentTab();
   
   if (!tab || !tab.url) {
@@ -250,6 +258,7 @@ document.getElementById('apply-job-btn').addEventListener('click', async () => {
     type: 'START_JOB_APPLICATION',
     tabUrl: tab.url,
     tabId: tab.id,
+    userId: userId, // Pass user_id to fetch resume from Supabase
   }, (response) => {
     if (chrome.runtime.lastError) {
       console.error('Error:', chrome.runtime.lastError);
@@ -262,8 +271,10 @@ document.getElementById('apply-job-btn').addEventListener('click', async () => {
       // Store the response
       window.currentJobData = response.job_data;
       window.currentAIResponse = response.ai_response;
+      window.currentPdfPath = response.pdf_path; // Store PDF path for download
       window.backendResponseReceived = true;
       console.log('Backend processing completed successfully');
+      console.log('PDF path stored:', window.currentPdfPath);
     } else {
       // Show error
       const errorMsg = response?.error || 'Unknown error occurred';
@@ -318,13 +329,31 @@ document.getElementById('back-to-choice-btn').addEventListener('click', () => {
 });
 
 document.getElementById('download-resume-btn').addEventListener('click', () => {
-  // TODO: Implement download functionality
+  // Check if we have a PDF path from the backend response
+  if (!window.currentPdfPath) {
+    alert('No resume PDF available. Please run the job application process first.');
+    return;
+  }
+  
+  // Send download request to background script with PDF path
   chrome.runtime.sendMessage({
     type: 'DOWNLOAD_RESUME',
+    pdf_path: window.currentPdfPath,
+  }, (response) => {
+    if (chrome.runtime.lastError) {
+      console.error('Error:', chrome.runtime.lastError);
+      alert('Error downloading resume: ' + chrome.runtime.lastError.message);
+      return;
+    }
+    
+    if (response && response.success) {
+      console.log('Resume download initiated');
+    } else {
+      const errorMsg = response?.error || 'Unknown error occurred';
+      console.error('Download error:', errorMsg);
+      alert('Error downloading resume: ' + errorMsg);
+    }
   });
-  
-  // Show notification or feedback
-  alert('Resume download will be implemented with backend integration!');
 });
 
 document.getElementById('view-resume-btn').addEventListener('click', () => {

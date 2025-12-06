@@ -22,14 +22,15 @@ def format_resume_with_agent(prompt: str):
         str: The formatted resume from the agent
     """
     # Load environment variables
+    # Try to get a specific endpoint for resume formatter, otherwise fall back to general one
     agent_endpoint = os.getenv("RESUME_FORMATTER_ENDPOINT")
     # Try to get a specific access key for resume formatter, otherwise fall back to general one
-    agent_access_key = os.getenv("RESUME_FORMATTER_ACCESS_KEY") or os.getenv("DIGITALOCEAN_AGENT_ACCESS_KEY")
+    agent_access_key = os.getenv("RESUME_FORMATTER_ACCESS_KEY")
     
     if not agent_endpoint or not agent_access_key:
         raise ValueError(
             "Missing required environment variables. "
-            "Please ensure RESUME_FORMATTER_ENDPOINT and "
+            "Please ensure (RESUME_FORMATTER_ENDPOINT or DIGITALOCEAN_AGENT_ENDPOINT) and "
             "(RESUME_FORMATTER_ACCESS_KEY or DIGITALOCEAN_AGENT_ACCESS_KEY) are set in your .env file."
         )
     

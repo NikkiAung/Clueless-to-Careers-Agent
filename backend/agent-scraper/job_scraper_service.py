@@ -6,7 +6,20 @@ and sending them to the AI agent for resume tailoring.
 import asyncio
 import sys
 import os
+import json
 from pathlib import Path
+from typing import Optional
+from concurrent.futures import ThreadPoolExecutor
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+try:
+    from supabase import create_client, Client
+except ImportError:
+    print("Warning: supabase package not installed. Install it with: pip install supabase")
+    Client = None
 
 example_resume = """
 Ye Marn Aung
@@ -57,10 +70,247 @@ sys.path.insert(0, str(backend_path))
 
 from user_job_match.user_job_map import ask_agent_for_improvements
 from tailor_resume.rewrite_resume import rewrite_resume_with_agent
-from convertMDtoPDF.convertoPDF import convert_markdown_to_pdf
+
+# Optional import for PDF conversion - server can start without it
+try:
+    from convertMDtoPDF.convertoPDF import convert_markdown_to_pdf
+    PDF_CONVERSION_AVAILABLE = True
+except (ImportError, OSError) as e:
+    print(f"Warning: PDF conversion not available: {e}")
+    print("PDF generation will be skipped. To enable it, install WeasyPrint dependencies:")
+    print("  macOS: brew install pango gdk-pixbuf gobject-introspection")
+    print("  Then: pip install --upgrade weasyprint")
+    PDF_CONVERSION_AVAILABLE = False
+    convert_markdown_to_pdf = None
 
 
-async def scrape_and_tailor_resume(job_url: str, resume_text: str = None) -> dict:
+def get_supabase_client() -> Optional[Client]:
+    """Create and return a Supabase client."""
+    if Client is None:
+        return None
+    
+    supabase_url = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+    
+    if not supabase_url or not supabase_key:
+        print("Warning: Supabase credentials not found in environment variables")
+        return None
+    
+    try:
+        return create_client(supabase_url, supabase_key)
+    except Exception as e:
+        print(f"Error creating Supabase client: {e}")
+        return None
+
+
+def fetch_resume_from_supabase(user_id: str) -> Optional[dict]:
+    """
+    Fetch parsed resume data from Supabase for a given user_id.
+    
+    Args:
+        user_id (str): The user's UUID
+        
+    Returns:
+        dict: Parsed resume data from database, or None if not found
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return None
+    
+    try:
+        response = supabase.table("parsed_resumes").select("*").eq("user_id", user_id).execute()
+        
+        if response.data and len(response.data) > 0:
+            return response.data[0]
+        else:
+            print(f"No resume found for user_id: {user_id}")
+            return None
+    except Exception as e:
+        print(f"Error fetching resume from Supabase: {e}")
+        return None
+
+
+def convert_parsed_resume_to_text(parsed_resume: dict) -> str:
+    """
+    Convert parsed resume data from database to resume text format.
+    
+    Args:
+        parsed_resume (dict): Parsed resume data from database
+        
+    Returns:
+        str: Formatted resume text
+    """
+    lines = []
+    
+    # Header: Name, Location, Phone, Emails, Links
+    header_parts = []
+    if parsed_resume.get("name"):
+        header_parts.append(parsed_resume["name"])
+    if parsed_resume.get("location"):
+        header_parts.append(parsed_resume["location"])
+    if parsed_resume.get("phone"):
+        header_parts.append(parsed_resume["phone"])
+    
+    # Add emails
+    emails = parsed_resume.get("emails")
+    if emails:
+        if isinstance(emails, list):
+            header_parts.extend(emails)
+        elif isinstance(emails, str):
+            try:
+                emails_list = json.loads(emails)
+                if isinstance(emails_list, list):
+                    header_parts.extend(emails_list)
+            except:
+                header_parts.append(emails)
+    
+    # Add links
+    links = parsed_resume.get("links")
+    if links:
+        if isinstance(links, dict):
+            for key, value in links.items():
+                if value:
+                    header_parts.append(str(value))
+        elif isinstance(links, str):
+            try:
+                links_dict = json.loads(links)
+                if isinstance(links_dict, dict):
+                    for key, value in links_dict.items():
+                        if value:
+                            header_parts.append(str(value))
+            except:
+                pass
+    
+    if header_parts:
+        lines.append(" | ".join(header_parts))
+        lines.append("")
+    
+    # Professional Summary
+    if parsed_resume.get("professional_summary"):
+        lines.append("PROFESSIONAL SUMMARY")
+        lines.append(parsed_resume["professional_summary"])
+        lines.append("")
+    
+    # Education
+    education = parsed_resume.get("education")
+    if education:
+        lines.append("EDUCATION")
+        if isinstance(education, dict):
+            # If it's a dict with 'text' key (from our conversion)
+            if "text" in education:
+                lines.append(education["text"])
+            else:
+                # Otherwise, format the dict
+                lines.append(json.dumps(education, indent=2))
+        elif isinstance(education, str):
+            try:
+                education_dict = json.loads(education)
+                if isinstance(education_dict, dict) and "text" in education_dict:
+                    lines.append(education_dict["text"])
+                else:
+                    lines.append(education)
+            except:
+                lines.append(education)
+        lines.append("")
+    
+    # Work Experience
+    work_experience = parsed_resume.get("work_experience")
+    if work_experience:
+        lines.append("WORK EXPERIENCE")
+        if isinstance(work_experience, dict):
+            if "text" in work_experience:
+                lines.append(work_experience["text"])
+            else:
+                lines.append(json.dumps(work_experience, indent=2))
+        elif isinstance(work_experience, str):
+            try:
+                work_dict = json.loads(work_experience)
+                if isinstance(work_dict, dict) and "text" in work_dict:
+                    lines.append(work_dict["text"])
+                else:
+                    lines.append(work_experience)
+            except:
+                lines.append(work_experience)
+        lines.append("")
+    
+    # Projects
+    projects = parsed_resume.get("projects")
+    if projects:
+        lines.append("PROJECT EXPERIENCE")
+        if isinstance(projects, list):
+            for project in projects:
+                if isinstance(project, dict):
+                    name = project.get("name", "")
+                    description = project.get("description", "")
+                    technologies = project.get("technologies", [])
+                    
+                    tech_str = ""
+                    if technologies:
+                        if isinstance(technologies, list):
+                            tech_str = " | ".join(technologies)
+                        else:
+                            tech_str = str(technologies)
+                    
+                    if name:
+                        if tech_str:
+                            lines.append(f"{name}\t{tech_str}")
+                        else:
+                            lines.append(name)
+                    if description:
+                        # Add bullet points if description has multiple lines
+                        desc_lines = description.split("\n")
+                        for desc_line in desc_lines:
+                            if desc_line.strip():
+                                lines.append(f"●\t{desc_line.strip()}")
+                elif isinstance(project, str):
+                    lines.append(project)
+        elif isinstance(projects, str):
+            try:
+                projects_list = json.loads(projects)
+                if isinstance(projects_list, list):
+                    for project in projects_list:
+                        if isinstance(project, dict):
+                            name = project.get("name", "")
+                            description = project.get("description", "")
+                            if name:
+                                lines.append(name)
+                            if description:
+                                lines.append(f"●\t{description}")
+            except:
+                lines.append(projects)
+        lines.append("")
+    
+    # Skills
+    skills = parsed_resume.get("skills")
+    if skills:
+        lines.append("SKILLS")
+        if isinstance(skills, dict):
+            for category, skill_list in skills.items():
+                if skill_list:
+                    if isinstance(skill_list, list):
+                        skill_str = ", ".join(skill_list)
+                        lines.append(f"{category}: {skill_str}")
+                    else:
+                        lines.append(f"{category}: {skill_list}")
+        elif isinstance(skills, str):
+            try:
+                skills_dict = json.loads(skills)
+                if isinstance(skills_dict, dict):
+                    for category, skill_list in skills_dict.items():
+                        if skill_list:
+                            if isinstance(skill_list, list):
+                                skill_str = ", ".join(skill_list)
+                                lines.append(f"{category}: {skill_str}")
+                            else:
+                                lines.append(f"{category}: {skill_list}")
+            except:
+                lines.append(skills)
+        lines.append("")
+    
+    return "\n".join(lines)
+
+
+async def scrape_and_tailor_resume(job_url: str, resume_text: str = None, user_id: str = None) -> dict:
     """
     Main function that scrapes a job posting and sends it to the AI agent.
     
@@ -74,7 +324,8 @@ async def scrape_and_tailor_resume(job_url: str, resume_text: str = None) -> dic
     
     Args:
         job_url (str): URL of the job posting to scrape
-        resume_text (str, optional): The resume text to use. If not provided, uses example_resume.
+        resume_text (str, optional): The resume text to use. If not provided, tries to fetch from Supabase using user_id, or falls back to example_resume.
+        user_id (str, optional): User UUID to fetch resume from Supabase database.
         
     Returns:
         dict: Dictionary containing:
@@ -87,8 +338,29 @@ async def scrape_and_tailor_resume(job_url: str, resume_text: str = None) -> dic
             - pdf_path (str): Path to the generated PDF file
             - error (str): Error message if any
     """
-    # Use example_resume as default if no resume_text is provided
-    resume = resume_text if resume_text else example_resume
+    # Determine which resume to use
+    resume = None
+    
+    if resume_text:
+        # Use provided resume text
+        resume = resume_text
+    elif user_id:
+        # Try to fetch from Supabase
+        print(f"\n{'='*80}")
+        print(f"Fetching resume from Supabase for user_id: {user_id}")
+        print(f"{'='*80}")
+        parsed_resume = fetch_resume_from_supabase(user_id)
+        if parsed_resume:
+            print("✓ Resume found in database, converting to text format...")
+            resume = convert_parsed_resume_to_text(parsed_resume)
+            print(f"Resume text length: {len(resume)} characters")
+        else:
+            print("⚠ No resume found in database, using example resume")
+            resume = example_resume
+    else:
+        # Fall back to example resume
+        print("⚠ No user_id provided and no resume_text, using example resume")
+        resume = example_resume
     
     result = {
         "success": False,
@@ -208,46 +480,55 @@ async def scrape_and_tailor_resume(job_url: str, resume_text: str = None) -> dic
         print(f"STEP 6: Converting Markdown to PDF")
         print(f"{'='*80}")
         if result.get("rewritten_resume"):
-            try:
-                # Generate output PDF path
-                # Use job title or company name for filename if available
-                job_title = result.get("job_data", {}).get("job_title", "resume")
-                company = result.get("job_data", {}).get("company", "")
-                
-                # Sanitize filename
-                safe_job_title = "".join(c for c in job_title if c.isalnum() or c in (' ', '-', '_')).strip()[:50]
-                safe_company = "".join(c for c in company if c.isalnum() or c in (' ', '-', '_')).strip()[:30]
-                
-                if safe_company:
-                    pdf_filename = f"tailored_resume_{safe_job_title}_{safe_company}.pdf"
-                else:
-                    pdf_filename = f"tailored_resume_{safe_job_title}.pdf"
-                
-                # Remove spaces and replace with underscores
-                pdf_filename = pdf_filename.replace(" ", "_")
-                
-                # Set output path in the convertMDtoPDF directory
-                output_dir = backend_path / "convertMDtoPDF"
-                output_dir.mkdir(parents=True, exist_ok=True)
-                pdf_path = output_dir / pdf_filename
-                
-                print(f"Converting Markdown to PDF: {pdf_path}")
-                pdf_path_str = convert_markdown_to_pdf(
-                    markdown_content=result["rewritten_resume"],
-                    output_path=pdf_path
-                )
-                result["pdf_path"] = pdf_path_str
-                print(f"\n✓ PDF Generated Successfully!")
-                print(f"PDF saved at: {pdf_path_str}")
-            except Exception as e:
-                error_msg = f"Failed to convert to PDF: {str(e)}"
-                if result["error"]:
-                    result["error"] += f" | {error_msg}"
-                else:
-                    result["error"] = error_msg
-                print(f"\n❌ {error_msg}")
-                import traceback
-                traceback.print_exc()
+            if not PDF_CONVERSION_AVAILABLE or not convert_markdown_to_pdf:
+                print(f"\n⚠ PDF conversion not available. Skipping PDF generation.")
+                print("To enable PDF generation, install WeasyPrint dependencies:")
+                print("  macOS: brew install pango gdk-pixbuf gobject-introspection")
+                print("  Then: pip install --upgrade weasyprint")
+            else:
+                try:
+                    # Generate output PDF path
+                    # Use job title or company name for filename if available
+                    job_title = result.get("job_data", {}).get("job_title", "resume")
+                    company = result.get("job_data", {}).get("company", "")
+                    
+                    # Sanitize filename
+                    safe_job_title = "".join(c for c in job_title if c.isalnum() or c in (' ', '-', '_')).strip()[:50]
+                    safe_company = "".join(c for c in company if c.isalnum() or c in (' ', '-', '_')).strip()[:30]
+                    
+                    if safe_company:
+                        pdf_filename = f"tailored_resume_{safe_job_title}_{safe_company}.pdf"
+                    else:
+                        pdf_filename = f"tailored_resume_{safe_job_title}.pdf"
+                    
+                    # Remove spaces and replace with underscores
+                    pdf_filename = pdf_filename.replace(" ", "_")
+                    
+                    # Set output path in the convertMDtoPDF directory
+                    output_dir = backend_path / "convertMDtoPDF"
+                    output_dir.mkdir(parents=True, exist_ok=True)
+                    pdf_path = output_dir / pdf_filename
+                    
+                    print(f"Converting Markdown to PDF: {pdf_path}")
+                    pdf_path_str = convert_markdown_to_pdf(
+                        markdown_content=result["rewritten_resume"],
+                        output_path=pdf_path
+                    )
+                    # Convert to relative path from backend directory for API endpoint
+                    pdf_path_relative = Path(pdf_path_str).relative_to(backend_path)
+                    result["pdf_path"] = str(pdf_path_relative)
+                    print(f"\n✓ PDF Generated Successfully!")
+                    print(f"PDF saved at: {pdf_path_str}")
+                    print(f"Relative path (for API): {result['pdf_path']}")
+                except Exception as e:
+                    error_msg = f"Failed to convert to PDF: {str(e)}"
+                    if result["error"]:
+                        result["error"] += f" | {error_msg}"
+                    else:
+                        result["error"] = error_msg
+                    print(f"\n❌ {error_msg}")
+                    import traceback
+                    traceback.print_exc()
         else:
             print(f"\n⚠ Skipping PDF conversion: No rewritten resume available")
         
@@ -262,20 +543,41 @@ async def scrape_and_tailor_resume(job_url: str, resume_text: str = None) -> dic
         return result
 
 
-def scrape_and_tailor_resume_sync(job_url: str, resume_text: str = None) -> dict:
+def scrape_and_tailor_resume_sync(job_url: str, resume_text: str = None, user_id: str = None) -> dict:
     """
     Synchronous wrapper for scrape_and_tailor_resume.
     
     This is useful when calling from non-async contexts (like Flask/FastAPI endpoints).
     
+    Uses a thread pool executor to run the async code in a separate thread with its own
+    event loop, preventing conflicts with Playwright/Crawlee locks that may be bound
+    to different event loops.
+    
     Args:
         job_url (str): URL of the job posting to scrape
-        resume_text (str, optional): The resume text to use. If not provided, uses example_resume.
+        resume_text (str, optional): The resume text to use. If not provided, tries to fetch from Supabase using user_id, or falls back to example_resume.
+        user_id (str, optional): User UUID to fetch resume from Supabase database.
         
     Returns:
         dict: Same as scrape_and_tailor_resume
     """
-    return asyncio.run(scrape_and_tailor_resume(job_url, resume_text))
+    def run_in_thread():
+        """Run the async function in a new thread with its own event loop."""
+        # Create a completely new event loop in this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(scrape_and_tailor_resume(job_url, resume_text, user_id))
+        finally:
+            # Clean up: close the loop and remove it
+            loop.close()
+            asyncio.set_event_loop(None)
+    
+    # Use ThreadPoolExecutor to run in a separate thread
+    # This ensures we have a completely isolated event loop
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(run_in_thread)
+        return future.result()
 
 
 if __name__ == "__main__":

@@ -115,6 +115,53 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
+// Transform API response to match frontend expected structure
+function transformResumeData(apiData: any): typeof mockResumeData | null {
+  if (!apiData) return null;
+  
+  // If it already has the expected structure (from mock data or previous transformation), return as is
+  if (apiData.technicalSkills && apiData.experience && apiData.projects) {
+    return apiData;
+  }
+  
+  // Transform API response structure to expected structure
+  const transformed: any = {
+    technicalSkills: [],
+    experience: [],
+    projects: [],
+  };
+  
+  // Extract technical skills from API response
+  if (apiData.skills) {
+    const allSkills: string[] = [];
+    if (apiData.skills.languages) {
+      allSkills.push(...apiData.skills.languages);
+    }
+    if (apiData.skills.developer_tools) {
+      allSkills.push(...apiData.skills.developer_tools);
+    }
+    if (apiData.skills.libraries_frameworks) {
+      allSkills.push(...apiData.skills.libraries_frameworks);
+    }
+    transformed.technicalSkills = [...new Set(allSkills)]; // Remove duplicates
+  }
+  
+  // For now, we'll leave experience and projects empty since the API returns them as strings/objects
+  // You may want to parse work_experience string into structured data later
+  transformed.experience = [];
+  
+  // Transform projects object to array
+  if (apiData.projects && typeof apiData.projects === 'object') {
+    transformed.projects = Object.entries(apiData.projects).map(([name, description]) => ({
+      name,
+      description: typeof description === 'string' ? description : '',
+      technologies: [], // Could be extracted from description if needed
+    }));
+  }
+  
+  return transformed;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const supabase = createClient();
@@ -225,7 +272,9 @@ export default function ProfilePage() {
             const parsedResumeData = typeof profile.resume_data === 'string' 
               ? JSON.parse(profile.resume_data) 
               : profile.resume_data;
-            setResumeData(parsedResumeData);
+            // Transform the data to match expected structure
+            const transformedData = transformResumeData(parsedResumeData);
+            setResumeData(transformedData);
           } catch (e) {
             console.error('Error parsing resume data:', e);
           }
@@ -302,13 +351,74 @@ export default function ProfilePage() {
       setResumeFilename(file.name);
       setResumeUploaded(true);
       
-      // Simulate resume processing (you can integrate with your backend here)
-      // For now, using mock data - replace this with actual resume parsing
-      setTimeout(async () => {
-        const extractedData = mockResumeData; // Replace with actual extraction
-        setResumeData(extractedData);
+      // Process resume with backend API
+      try {
+        // Get backend API URL from environment variable or use default
+        // In Next.js, NEXT_PUBLIC_* env vars are available in browser at build time
+        // Default to port 5001 to avoid conflict with macOS AirPlay Receiver on port 5000
+        const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001').replace(/\/$/, '');
         
-        // Save extracted resume data to database along with resume URL and filename
+        // Create FormData to send file to backend
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        console.log('Sending resume to backend API for processing...');
+        console.log('API URL:', `${apiUrl}/api/format-resume`);
+        console.log('File name:', file.name);
+        console.log('File size:', file.size, 'bytes');
+        
+        // Send file to backend API for processing
+        let response;
+        try {
+          response = await fetch(`${apiUrl}/api/format-resume`, {
+            method: 'POST',
+            body: formData,
+            // Don't set Content-Type header - browser will set it with boundary for FormData
+          });
+        } catch (fetchError: any) {
+          // Handle network errors (server not running, CORS, etc.)
+          console.error('Fetch error details:', {
+            message: fetchError.message,
+            name: fetchError.name,
+            stack: fetchError.stack,
+            apiUrl: `${apiUrl}/api/format-resume`
+          });
+          
+          if (fetchError.message === 'Failed to fetch' || fetchError.name === 'TypeError') {
+            const errorMsg = `Cannot connect to backend API at ${apiUrl}. ` +
+              `Please make sure the backend server is running. ` +
+              `Start it with: cd backend && python api_server.py\n\n` +
+              `If the server is running, check:\n` +
+              `- The server is accessible at ${apiUrl} (default port is 5001, not 5000)\n` +
+              `- CORS is enabled (should be by default)\n` +
+              `- No firewall is blocking the connection\n` +
+              `- On macOS, port 5000 is used by AirPlay - we use port 5001 instead`;
+            throw new Error(errorMsg);
+          }
+          throw fetchError;
+        }
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || `API request failed with status ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to format resume');
+        }
+        
+        console.log('Resume formatted successfully:', result.formatted_resume);
+        
+        // Transform the API response to match the expected frontend structure
+        const transformedData = transformResumeData(result.formatted_resume);
+        setResumeData(transformedData);
+        
+        // Also save the original API response for future use
+        const extractedData = result.formatted_resume;
+        
+        // Save extracted resume data to profiles table (for backward compatibility)
         try {
           // Use state variable for name or fallback
           const profileName = name.trim() || user.user_metadata?.name || user.email?.split('@')[0] || 'User';
@@ -327,18 +437,71 @@ export default function ProfilePage() {
             });
           
           if (saveResumeDataError) {
-            console.error('Error saving resume data:', saveResumeDataError);
-            alert('Resume uploaded but failed to save extracted data: ' + saveResumeDataError.message);
+            console.error('Error saving resume data to profiles:', saveResumeDataError);
           } else {
-            console.log('Resume data saved successfully');
+            console.log('Resume data saved to profiles table successfully');
           }
         } catch (error: any) {
-          console.error('Error saving resume data:', error);
-          alert('Resume uploaded but failed to save extracted data: ' + error.message);
+          console.error('Error saving resume data to profiles:', error);
+        }
+        
+        // Save parsed resume data to parsed_resumes table
+        try {
+          // Transform data to match parsed_resumes schema
+          const parsedResumeData: any = {
+            user_id: user.id,
+            name: extractedData.name || null,
+            location: extractedData.location || null,
+            phone: extractedData.phone || null,
+            emails: extractedData.emails || null, // Already an array, will be stored as jsonb
+            links: extractedData.links || null, // Already an object, will be stored as jsonb
+            professional_summary: extractedData.professional_summary || null,
+            // Convert education string to jsonb format
+            education: extractedData.education 
+              ? (typeof extractedData.education === 'string' 
+                  ? { text: extractedData.education } 
+                  : extractedData.education)
+              : null,
+            // Convert work_experience string to jsonb format
+            work_experience: extractedData.work_experience
+              ? (typeof extractedData.work_experience === 'string'
+                  ? { text: extractedData.work_experience }
+                  : extractedData.work_experience)
+              : null,
+            projects: extractedData.projects || null, // Already an array, will be stored as jsonb
+            skills: extractedData.skills || null, // Already an object, will be stored as jsonb
+            updated_at: new Date().toISOString()
+          };
+          
+          console.log('Saving parsed resume data to parsed_resumes table...');
+          console.log('Parsed resume data:', parsedResumeData);
+          
+          // Upsert to parsed_resumes table (user_id is unique, so it will update if exists)
+          const { data: savedParsedResume, error: saveParsedResumeError } = await supabase
+            .from('parsed_resumes')
+            .upsert(parsedResumeData, {
+              onConflict: 'user_id'
+            })
+            .select()
+            .single();
+          
+          if (saveParsedResumeError) {
+            console.error('Error saving parsed resume data:', saveParsedResumeError);
+            alert('Resume uploaded and formatted but failed to save parsed data: ' + saveParsedResumeError.message);
+          } else {
+            console.log('Parsed resume data saved successfully:', savedParsedResume);
+          }
+        } catch (error: any) {
+          console.error('Error saving parsed resume data:', error);
+          alert('Resume uploaded and formatted but failed to save parsed data: ' + error.message);
         }
         
         setIsProcessing(false);
-      }, 2000);
+      } catch (error: any) {
+        console.error('Error processing resume:', error);
+        alert('Resume uploaded but failed to process: ' + error.message);
+        setIsProcessing(false);
+      }
     } catch (error: any) {
       console.error('Error uploading resume:', error);
       alert('Failed to upload resume: ' + error.message);
@@ -815,7 +978,8 @@ export default function ProfilePage() {
                       className="overflow-hidden"
                     >
                       <div className="space-y-6">
-                        {resumeData.experience.map((exp, index) => (
+                        {resumeData.experience && resumeData.experience.length > 0 ? (
+                          resumeData.experience.map((exp, index) => (
                           <motion.div
                             key={index}
                             initial={{ opacity: 0, x: -20 }}
@@ -876,7 +1040,10 @@ export default function ProfilePage() {
                               </div>
                             )}
                           </motion.div>
-                        ))}
+                          ))
+                        ) : (
+                          <p className="text-neutral-500 text-sm">No work experience extracted yet</p>
+                        )}
                       </div>
                     </motion.div>
                   </motion.div>
@@ -919,33 +1086,39 @@ export default function ProfilePage() {
                       className="overflow-hidden"
                     >
                       <div className="grid md:grid-cols-2 gap-4">
-                        {resumeData.projects.map((project, index) => (
-                          <motion.div
-                            key={index}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                            whileHover={{ scale: 1.02, y: -5 }}
-                            className="p-4 bg-white/[0.02] rounded-xl border border-white/10 hover:border-white/20 transition-all duration-300 group"
-                          >
-                            <h3 className="text-white font-semibold group-hover:text-neutral-200 transition-colors">
-                              {project.name}
-                            </h3>
-                            <p className="text-neutral-500 text-sm mt-2 line-clamp-2">
-                              {project.description}
-                            </p>
-                            <div className="flex flex-wrap gap-1.5 mt-3">
-                              {project.technologies.map((tech) => (
-                                <span
-                                  key={tech}
-                                  className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-xs text-neutral-400"
-                                >
-                                  {tech}
-                                </span>
-                              ))}
-                            </div>
-                          </motion.div>
-                        ))}
+                        {resumeData.projects && resumeData.projects.length > 0 ? (
+                          resumeData.projects.map((project, index) => (
+                            <motion.div
+                              key={index}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.1 }}
+                              whileHover={{ scale: 1.02, y: -5 }}
+                              className="p-4 bg-white/[0.02] rounded-xl border border-white/10 hover:border-white/20 transition-all duration-300 group"
+                            >
+                              <h3 className="text-white font-semibold group-hover:text-neutral-200 transition-colors">
+                                {project.name}
+                              </h3>
+                              <p className="text-neutral-500 text-sm mt-2 line-clamp-2">
+                                {project.description}
+                              </p>
+                              {project.technologies && project.technologies.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-3">
+                                  {project.technologies.map((tech) => (
+                                    <span
+                                      key={tech}
+                                      className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-xs text-neutral-400"
+                                    >
+                                      {tech}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </motion.div>
+                          ))
+                        ) : (
+                          <p className="text-neutral-500 text-sm col-span-2">No projects extracted yet</p>
+                        )}
                         <motion.button
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}

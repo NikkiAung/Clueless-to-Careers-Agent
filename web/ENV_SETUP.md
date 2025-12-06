@@ -17,7 +17,10 @@
    ```env
    NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+   NEXT_PUBLIC_API_URL=http://localhost:5001
    ```
+   
+   **Note:** `NEXT_PUBLIC_API_URL` is optional. If not set, it defaults to `http://localhost:5001` (port 5001 is used to avoid conflict with macOS AirPlay Receiver on port 5000). Update this if your backend API is running on a different URL.
 
 4. **Restart your Next.js dev server:**
    ```bash

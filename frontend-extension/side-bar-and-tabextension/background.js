@@ -39,19 +39,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'START_JOB_APPLICATION') {
     // Handle job application start - call backend scraper
     console.log('Starting job application for:', message.tabUrl);
+    console.log('User ID:', message.userId);
     
-    // Call backend API to scrape and tailor resume
-    // Using 127.0.0.1 instead of localhost to avoid macOS AirPlay interference
-    fetch('http://127.0.0.1:5000/api/scrape-and-tailor', {
-      method: 'POST',
+    // First, check if backend server is running with a health check
+    const healthCheckPromise = fetch('http://127.0.0.1:5001/api/health', {
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        job_url: message.tabUrl
-      })
+      }
+    }).catch(() => null); // Ignore errors for health check
+    
+    // Prepare request body
+    const requestBody = {
+      job_url: message.tabUrl
+    };
+    
+    // Add user_id if provided (to fetch resume from Supabase)
+    if (message.userId) {
+      requestBody.user_id = message.userId;
+    }
+    
+    // Check health first, then proceed with the main request
+    healthCheckPromise.then(healthResponse => {
+      if (!healthResponse || !healthResponse.ok) {
+        throw new Error('Backend server is not running. Please start it with:\n\ncd backend && python api_server.py\n\nThe server should be running on port 5001.');
+      }
+      
+      // Call backend API to scrape and tailor resume
+      // Using port 5001 to avoid macOS AirPlay interference on port 5000
+      return fetch('http://127.0.0.1:5001/api/scrape-and-tailor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
     })
     .then(response => {
+      if (!response) {
+        throw new Error('Backend server is not running. Please start it with:\n\ncd backend && python api_server.py');
+      }
       // Check if response is ok
       if (!response.ok) {
         return response.text().then(text => {
@@ -74,6 +101,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         job_data: data.job_data,
         ai_response: data.ai_response,
         formatted_prompt: data.formatted_prompt,
+        improvements: data.improvements,
+        rewritten_resume: data.rewritten_resume,
+        pdf_path: data.pdf_path,
         error: data.error 
       });
     })
@@ -83,7 +113,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       
       // Provide helpful error messages
       if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        errorMessage = 'Cannot connect to backend server. Make sure the API server is running:\n\npython backend/api_server.py';
+        errorMessage = 'Cannot connect to backend server. Make sure the API server is running:\n\ncd backend && python api_server.py\n\nThe server should be running on port 5001.';
       } else if (error.message.includes('Unexpected end of JSON input')) {
         errorMessage = 'Backend server returned invalid response. Check if the server is running and responding correctly.';
       }
@@ -97,9 +127,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep message channel open for async response
   } else if (message.type === 'DOWNLOAD_RESUME') {
     // Handle resume download
-    // TODO: Integrate with backend
-    console.log('Downloading tailored resume...');
-    sendResponse({ success: true });
+    const pdfPath = message.pdf_path;
+    
+    if (!pdfPath) {
+      sendResponse({ 
+        success: false, 
+        error: 'No PDF path provided' 
+      });
+      return true;
+    }
+    
+    console.log('Downloading tailored resume from:', pdfPath);
+    
+    // Construct download URL
+    const downloadUrl = `http://127.0.0.1:5001/api/download-resume?pdf_path=${encodeURIComponent(pdfPath)}`;
+    
+    // Use Chrome downloads API to download the file
+    chrome.downloads.download({
+      url: downloadUrl,
+      saveAs: true, // Show save dialog
+      conflictAction: 'uniquify' // If file exists, create unique name
+    }, (downloadId) => {
+      if (chrome.runtime.lastError) {
+        console.error('Download error:', chrome.runtime.lastError);
+        sendResponse({ 
+          success: false, 
+          error: chrome.runtime.lastError.message 
+        });
+      } else {
+        console.log('Download started with ID:', downloadId);
+        sendResponse({ success: true });
+      }
+    });
+    
+    return true; // Keep message channel open for async response
   } else if (message.type === 'VIEW_RESUME') {
     // Handle resume preview
     // TODO: Integrate with backend

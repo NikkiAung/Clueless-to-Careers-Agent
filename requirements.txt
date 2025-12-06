@@ -8,4 +8,5 @@ flask-cors
 markdown
 weasyprint
 pypdf
+supabase
 
